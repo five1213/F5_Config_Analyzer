@@ -2,8 +2,8 @@ import json
 import re
 import configparser
 
-ipv4_gtm_config_open = open('C:\Users\Administrator\Desktop\F5_peizhi\ipv4_gtm.txt', encoding='utf-8')
-ipv6_gtm_config_open = open('C:\Users\Administrator\Desktop\F5_peizhi\ipv6_gtm.txt', encoding='utf-8')
+ipv4_gtm_config_open = open('C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv4_gtm.txt', encoding='utf-8')
+ipv6_gtm_config_open = open('C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv6_gtm.txt', encoding='utf-8')
 
 # poolconfig = open('ipv4_gtm_pool.txt', 'a', encoding='utf-8')
 
