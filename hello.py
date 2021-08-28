@@ -46,16 +46,30 @@ pool_mx_data_v4 = {}
 pool_aaaa_data_v6 = {}
 pool_cname_data_v6 = {}
 pool_mx_data_v6 = {}
+server_ip_data_v4_new = {}
 
 
 def servers_format(vs_info, server_name, server_ip, server_status,version):
     vs_info_ret = {}
     vs_infos = vs_pattern.findall(vs_info)
+    if len(list(vs_infos)) == 0:
+        if server_status == 'enabled':
+            if version == 'v4':
+                server_ip_data_v4[server_name] = server_ip
+            elif version == 'v6':
+                server_ip_data_v6[server_name] = server_ip
+        else:
+            if version == 'v4':
+                server_ip_data_disable_v4[server_name] = server_ip
+            elif version == 'v6':
+                server_ip_data_disable_v6[server_name] = server_ip
+
     for vs in vs_infos:
         vs_info_ret['vs_name'] = vs[0].strip()
         vs_info_ret['vs_ip_port'] = vs[1].strip()
         vs_info_ret['vs_status'] = vs[2].strip()
         vs_info_ret['vs_monitor'] = vs[3].strip()
+
         if vs[2].strip() == 'enabled' and server_status == 'enabled':
             if version == 'v4':
                 server_ip_data_v4[server_name] = server_ip
@@ -77,6 +91,7 @@ def get_gtm_servers(version):
     elif version == 'v6':
         gtm_servers = server_pattern.findall(ipv6_gtm_config)
     get_gtm_servers_rt = {}
+    print(len(list(gtm_servers)))
     for item in gtm_servers:
         get_gtm_servers_rt['server_name'] = item[0].strip()
         get_gtm_servers_rt['server_ip'] = item[1].strip()
@@ -147,14 +162,14 @@ def get_gtm_pools(version):
     elif version == 'v6':
         gtm_pools = pool_pattern.findall(ipv6_gtm_config)
 
-    print(len(gtm_pools))
+    # print(len(gtm_pools))
 
     gtm_pools_ret = []
     for item in gtm_pools:
         pool = {}
         pool['pool_type'] = item[0].strip()
         pool['pool_name'] = item[1].strip()
-        # poolconfig.write(item[1].strip() + '\n')
+
         pool['pool_status'] = item[2].strip()
         pool['fallback_mode'] =  item[3].strip()
         pool['load_balancing_mode'] = item[4].strip()
@@ -179,17 +194,23 @@ def get_gtm_wideip(version):
         wideip['pool-lb-mode'] = item[3].strip()
         wideip['pools'] = item[4].strip()
         wideip['pools-cname'] = item[6].strip()
-        gtm_wideip.append(wideip)
+        gtm_wideip_ret.append(wideip)
     return gtm_wideip_ret
 
 
 def main():
-    get_gtm_servers('v4')
-    get_gtm_servers('v6')
-    get_gtm_pools('v6')
+    # get_gtm_servers('v6')
+    # get_gtm_servers('v6')
+    # get_gtm_pools('v6')
     # poolconfig.close()
     # get_gtm_pools('v6')
-    # print(len(list(items)))
+    it1 = get_gtm_wideip('v4')
+    it2 = get_gtm_wideip('v6')
+    print(len(list(it1)))
+    print(len(list(it2)))
+    #
+    # for v in server_ip_data_v4_new.keys():
+    #     poolconfig.write(v + '\n')
     # print(pool_cname_data_v4['pool_CDNS_mmerchant.ccb.com'])
     # print(pool_cname_data_v6['pool_CDNS_mmerchant.ccb.com'])
     # print(server_ip_data)
