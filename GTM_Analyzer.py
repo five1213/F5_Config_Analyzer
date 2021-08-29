@@ -1,9 +1,17 @@
+import datetime
 import json
 import re
 import configparser
+import pandas as pd
 
-ipv4_gtm_config_open = open('C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv4_gtm.txt', encoding='utf-8')
-ipv6_gtm_config_open = open('C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv6_gtm.txt', encoding='utf-8')
+ipv4_gtm_config_path = 'C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv4_gtm.txt'
+ipv6_gtm_config_path = 'C:\\Users\\Administrator\\Desktop\\F5_peizhi\\ipv6_gtm.txt'
+result_path = 'E:\\result\\'
+
+
+
+ipv4_gtm_config_open = open(ipv4_gtm_config_path, encoding='utf-8')
+ipv6_gtm_config_open = open(ipv6_gtm_config_path, encoding='utf-8')
 
 # poolconfig = open('ipv4_gtm_pool.txt', 'a', encoding='utf-8')
 
@@ -263,7 +271,7 @@ def main():
         if wideip['type'] == 'a' or wideip['type'] == 'mx':
             wideip_str = wideip['wideip']
             if wideip_str not in result_dir.keys():
-                records = [''] * 7
+                records = [''] * 8
                 result_dir[wideip_str] = records
 
             pools = wideip['pools']
@@ -309,20 +317,21 @@ def main():
             domains_list = list(set(domains))
             domains_str = '\n'.join(domains_list)
 
+            result_dir[wideip_str][0] = wideip_str
             if wideip['type'] == 'a':
-                result_dir[wideip_str][0] = ips_str
-                result_dir[wideip_str][2] = domains_str
+                result_dir[wideip_str][1] = ips_str
+                result_dir[wideip_str][3] = domains_str
                 pool_lb_mode = wideip['pool_lb_mode'].strip()
                 if cname_order_domain_ga != '' and pool_lb_mode == 'global-availability':
                     if cname_order < a_order:
-                        result_dir[wideip_str][4] = cname_order_domain_ga
+                        result_dir[wideip_str][5] = cname_order_domain_ga
                     else:
-                        result_dir[wideip_str][4] = a_order_pool
+                        result_dir[wideip_str][5] = a_order_pool
                 elif cname_order_domain_top != '' and pool_lb_mode == 'topology':
-                    result_dir[wideip_str][4] = cname_order_domain_top
+                    result_dir[wideip_str][5] = cname_order_domain_top
 
             elif wideip['type'] == 'mx':
-                result_dir[wideip_str][6] = ips_str
+                result_dir[wideip_str][7] = ips_str
 
 
     for wideip in ipv6_wideips:
@@ -330,7 +339,7 @@ def main():
         if wideip['type'] == 'aaaa':
             wideip_str = wideip['wideip']
             if wideip_str not in result_dir.keys():
-                records = [''] * 7
+                records = [''] * 8
                 result_dir[wideip_str] = records
 
             pools = wideip['pools']
@@ -375,52 +384,22 @@ def main():
             domains_list = list(set(domains))
             domains_str = '\n'.join(domains_list)
 
-            result_dir[wideip_str][1] = ips_str
-            result_dir[wideip_str][3] = domains_str
+            result_dir[wideip_str][0] = wideip_str
+            result_dir[wideip_str][2] = ips_str
+            result_dir[wideip_str][4] = domains_str
             pool_lb_mode = wideip['pool_lb_mode'].strip()
             if cname_order_domain_ga != '' and pool_lb_mode == 'global-availability':
                 if cname_order < a_order:
-                    result_dir[wideip_str][5] = cname_order_domain_ga
+                    result_dir[wideip_str][6] = cname_order_domain_ga
                 else:
-                    result_dir[wideip_str][5] = a_order_pool
+                    result_dir[wideip_str][6] = a_order_pool
             elif cname_order_domain_top != '' and pool_lb_mode == 'topology':
-                result_dir[wideip_str][5] = cname_order_domain_top
+                result_dir[wideip_str][6] = cname_order_domain_top
 
-    print(result_dir['ssz.ccb.com'])
-
-
-    #
-    # for wideip in ipv6_wideips:
-    #     if wideip['type'] == 'aaaa':
-    #         print(wideip)
-
-    # for v in server_ip_data_v4_new.keys():
-    #     poolconfig.write(v + '\n')
-    # print(pool_cname_data_v4['pool_CDNS_mmerchant.ccb.com'])
-    # print(pool_cname_data_v6['pool_CDNS_mmerchant.ccb.com'])
-    # print(server_ip_data)
-    # print(server_ip_data_disable_v4)
-    # print(server_ip_data_disable_v6)
-    # for item in items:
-    #     pass
-    # # print(server_ip_data)
-    # print(server_ip_data_disable)
-    #     if item['server_name'] == '"ctc_host_ open.buy.ccb.com"':
-    #         print(item)
-    #         print(type(item['vs_info']))
-    #         print(item['vs_info'])
-    #     if item['server_name'] == '3ds.acqwbts.ccb.com_server':
-    #         print(item)
-    #         print(type(item['vs_info']))
-    #         print(item['vs_info'])
-    #     if item['server_name'] == 'BJCA-CUC-GSLB_ns4':
-    #         print(item)
-    #         print(type(item['vs_info']))
-    #         print(item['vs_info'])
-    #
-    # print(server_ip_data['"ctc_host_ open.buy.ccb.com"'])
-    # print(server_ip_data['3ds.acqwbts.ccb.com_server'])
-    # print('BJCA-CUC-GSLB_ns4' in server_ip_data.keys())
+    result_all_domain_list = result_dir.values()
+    df = pd.DataFrame(result_all_domain_list, columns=['域名','A记录','AAAA记录','ipv4_CNAME_记录','ipv6_CNAME_记录','ipv4_优先_CNAME','ipv6_优先_CNAME','MX记录'])
+    now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    df.to_excel(result_path + "result_all_domain_" + now_time + ".xlsx", index=False)
 
 
 if __name__ == '__main__':
