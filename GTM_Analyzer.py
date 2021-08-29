@@ -399,8 +399,9 @@ def main():
     result_all_domain_list = result_dir.values()
     df = pd.DataFrame(result_all_domain_list, columns=['域名','A记录','AAAA记录','ipv4_CNAME_记录','ipv6_CNAME_记录','ipv4_优先_CNAME','ipv6_优先_CNAME','MX记录'])
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    df.to_excel(result_path + "result_all_domain_" + now_time + ".xlsx", index=False)
-
+    respath = result_path + "result_all_domain_" + now_time + ".xlsx"
+    df.to_excel(respath, index=False)
+    print('解析完成：'+respath)
 
 if __name__ == '__main__':
     main()
