@@ -21,12 +21,16 @@ LTM_V12_ROUTE_RE_STR = config.get('LTM', 'LTM_V12_ROUTE_RE_STR')
 LTM_V10_ROUTE_RE_STR = config.get('LTM', 'LTM_V10_ROUTE_RE_STR')
 LTM_V12_SELF_IP_RE_STR = config.get('LTM', 'LTM_V12_SELF_IP_RE_STR')
 LTM_V10_SELF_IP_RE_STR = config.get('LTM', 'LTM_V10_SELF_IP_RE_STR')
+NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
+NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
 
 nas_filename_pattern = re.compile(NAS_FILENAME, re.MULTILINE)
 ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
 ltm_v10_route_pattern = re.compile(LTM_V10_ROUTE_RE_STR, re.MULTILINE)
 ltm_v12_self_ip_pattern = re.compile(LTM_V12_SELF_IP_RE_STR, re.MULTILINE)
 ltm_v10_self_ip_pattern = re.compile(LTM_V10_SELF_IP_RE_STR, re.MULTILINE)
+nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
+nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
 
 ls_config_path = os.listdir(config_path)
 
@@ -68,6 +72,7 @@ def get_device_data(path):
         ltm_device_list.append(sheet2.cell(row, 1).value)
     return ltm_device_list
 
+
 def get_ltm_config(filepath,type,version):
     ltm_config = {}
     ltm_config_open = open(filepath, encoding='utf-8')
@@ -75,47 +80,68 @@ def get_ltm_config(filepath,type,version):
     routes = ''
     self_ips = ''
     float_ips = ''
-    if version == 'V12' or version == 'V11' or version == 'V13':
-        ltm_v12_route = ltm_v12_route_pattern.findall(ltm_config_open_str)
-        for item in ltm_v12_route:
-            network = item[1].strip()
-            gw = item[0].strip()
-            routes = routes + network + ' gw ' + gw + '\n'
+    if type == 'F5':
+        if version == 'V12' or version == 'V11' or version == 'V13':
+            ltm_v12_route = ltm_v12_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v12_route:
+                network = item[1].strip()
+                gw = item[0].strip()
+                routes = routes + network + ' gw ' + gw + '\n'
 
-        ltm_v12_self_ip = ltm_v12_self_ip_pattern.findall(ltm_config_open_str)
-        for item in ltm_v12_self_ip:
-            ip = item[0].strip()
-            is_float = item[1].strip()
-            traffic_group = item[2].strip()
-            vlan = item[3].strip()
-            if is_float == 'enabled':
-                float_ips = float_ips + ip + ' ' + traffic_group + '\n'
-            else:
-                self_ips = self_ips + ip + ' ' + vlan + '\n'
+            ltm_v12_self_ip = ltm_v12_self_ip_pattern.findall(ltm_config_open_str)
+            for item in ltm_v12_self_ip:
+                ip = item[0].strip()
+                is_float = item[1].strip()
+                traffic_group = item[2].strip()
+                vlan = item[3].strip()
+                if is_float == 'enabled':
+                    float_ips = float_ips + ip + ' ' + traffic_group + '\n'
+                else:
+                    self_ips = self_ips + ip + ' ' + vlan + '\n'
 
-    elif version == 'V10':
-        ltm_v10_route = ltm_v10_route_pattern.findall(ltm_config_open_str)
-        for item in ltm_v10_route:
-            network = item[0].strip()
-            gw = item[1].strip()
-            routes = routes + network + ' gw ' + gw + '\n'
+        elif version == 'V10':
+            ltm_v10_route = ltm_v10_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v10_route:
+                network = item[0].strip()
+                gw = item[1].strip()
+                routes = routes + network + ' gw ' + gw + '\n'
 
-        ltm_v10_self_ip = ltm_v10_self_ip_pattern.findall(ltm_config_open_str)
-        for item in ltm_v10_self_ip:
-            ip = item[0].strip()
-            is_float = item[1].strip()
-            unit = item[2].strip()
-            vlan = item[3].strip()
-            if is_float == 'enabled':
-                float_ips = float_ips + ip  + '\n'
-            else:
-                self_ips = self_ips + ip + ' ' + vlan + '\n'
+            ltm_v10_self_ip = ltm_v10_self_ip_pattern.findall(ltm_config_open_str)
+            for item in ltm_v10_self_ip:
+                ip = item[0].strip()
+                is_float = item[1].strip()
+                unit = item[2].strip()
+                vlan = item[3].strip()
+                if is_float == 'enabled':
+                    float_ips = float_ips + ip  + '\n'
+                else:
+                    self_ips = self_ips + ip + ' ' + vlan + '\n'
+
+    elif type == 'NSAE':
+        nsae_ip = nsae_ip_pattern.findall(ltm_config_open_str)
+        for item in nsae_ip:
+            interface = item[0].strip().replace('"','')
+            ip = item[1].strip()
+            mask = item[2].strip()
+            self_ips = self_ips + ip + '/' + mask + ' ' + interface + '\n'
+
+        nsae_route = nsae_route_pattern.findall(ltm_config_open_str)
+        for item in nsae_route:
+            type = item[0].strip()
+            route = item[1].strip()
+            if type == 'default':
+                routes = routes + 'default' + ' gw ' + route + '\n'
+            elif type == 'static':
+                patterns = r' +'
+                network = re.split(patterns,route)
+                routes = routes + network[0] + '/' + network[1] + ' gw ' + network[2] + '\n'
 
     ltm_config['route'] = routes
     ltm_config['self_ip'] = self_ips
     ltm_config['float_ip'] = float_ips
     ltm_config_open.close()
     return ltm_config
+
 
 def main():
     nas_fliename_list = get_nas_filename_list()
@@ -131,7 +157,8 @@ def main():
         version = NAS_DEVICE_DIR[device]['version']
         real_name = NAS_DEVICE_DIR[device]['real_name']
         mgmt_ip = NAS_DEVICE_DIR[device]['mgmt_ip']
-        ltm_config = get_ltm_config(filepath,'',version)
+        device_type = NAS_DEVICE_DIR[device]['type']
+        ltm_config = get_ltm_config(filepath,device_type,version)
         device_net_info[0] = real_name
         device_net_info[1] = mgmt_ip
         device_net_info[2] = ltm_config['self_ip']
