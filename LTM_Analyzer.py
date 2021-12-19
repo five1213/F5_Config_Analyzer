@@ -23,6 +23,9 @@ LTM_V12_SELF_IP_RE_STR = config.get('LTM', 'LTM_V12_SELF_IP_RE_STR')
 LTM_V10_SELF_IP_RE_STR = config.get('LTM', 'LTM_V10_SELF_IP_RE_STR')
 NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
 NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
+CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
+CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
+CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
 
 nas_filename_pattern = re.compile(NAS_FILENAME, re.MULTILINE)
 ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
@@ -31,6 +34,10 @@ ltm_v12_self_ip_pattern = re.compile(LTM_V12_SELF_IP_RE_STR, re.MULTILINE)
 ltm_v10_self_ip_pattern = re.compile(LTM_V10_SELF_IP_RE_STR, re.MULTILINE)
 nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
 nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
+citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
+citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
+citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
+
 
 ls_config_path = os.listdir(config_path)
 
@@ -80,6 +87,8 @@ def get_ltm_config(filepath,type,version):
     routes = ''
     self_ips = ''
     float_ips = ''
+    acls = ''
+
     if type == 'F5':
         if version == 'V12' or version == 'V11' or version == 'V13':
             ltm_v12_route = ltm_v12_route_pattern.findall(ltm_config_open_str)
@@ -113,7 +122,7 @@ def get_ltm_config(filepath,type,version):
                 unit = item[2].strip()
                 vlan = item[3].strip()
                 if is_float == 'enabled':
-                    float_ips = float_ips + ip  + '\n'
+                    float_ips = float_ips + ip + '\n'
                 else:
                     self_ips = self_ips + ip + ' ' + vlan + '\n'
 
@@ -136,9 +145,32 @@ def get_ltm_config(filepath,type,version):
                 network = re.split(patterns,route)
                 routes = routes + network[0] + '/' + network[1] + ' gw ' + network[2] + '\n'
 
-    ltm_config['route'] = routes
-    ltm_config['self_ip'] = self_ips
-    ltm_config['float_ip'] = float_ips
+    elif type == 'Citrix':
+        citrix_ip = citrix_ip_pattern.findall(ltm_config_open_str)
+        for item in citrix_ip:
+            vlan_id = item[0].strip()
+            ip = item[1].strip()
+            mask = item[2].strip()
+            self_ips = self_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
+            float_ips = float_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
+
+        citrix_route = citrix_route_pattern.findall(ltm_config_open_str)
+        for item in citrix_route:
+            network = item[0].strip()
+            mask = item[1].strip()
+            gw = item[2].strip()
+            routes = routes + network + '/' + mask + ' gw ' + gw + '\n'
+
+        citrix_acl = citrix_acl_pattern.findall(ltm_config_open_str)
+        for item in citrix_acl:
+            acl_allow_src = item[0].strip()
+            acl_allow_dest = item[1].strip()
+            acls = acls + 'src: ' + acl_allow_src + ' dest: ' + acl_allow_dest + '\n'
+
+    ltm_config['route'] = routes.rstrip('\n')
+    ltm_config['self_ip'] = self_ips.rstrip('\n')
+    ltm_config['float_ip'] = float_ips.rstrip('\n')
+    ltm_config['acls'] = acls.rstrip('\n')
     ltm_config_open.close()
     return ltm_config
 
@@ -153,7 +185,7 @@ def main():
             print(device+"设备名不正确，请填入正确的设备名称！")
             break
         filepath = config_path + '\\' + nas_fliename_list[device]
-        device_net_info = [''] * 5
+        device_net_info = [''] * 6
         version = NAS_DEVICE_DIR[device]['version']
         real_name = NAS_DEVICE_DIR[device]['real_name']
         mgmt_ip = NAS_DEVICE_DIR[device]['mgmt_ip']
@@ -164,10 +196,11 @@ def main():
         device_net_info[2] = ltm_config['self_ip']
         device_net_info[3] = ltm_config['float_ip']
         device_net_info[4] = ltm_config['route']
+        device_net_info[5] = ltm_config['acls']
         networks[device] = device_net_info
 
     result_all_networks_list = networks.values()
-    df = pd.DataFrame(result_all_networks_list, columns=['设备名称','管理ip','互联ip','浮动ip','路由'])
+    df = pd.DataFrame(result_all_networks_list, columns=['设备名称','管理ip','互联ip','浮动ip','路由','访问控制'])
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     respath = result_path + "result_all_networks_" + now_time + ".xlsx"
     df.to_excel(respath, index=False)
