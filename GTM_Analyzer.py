@@ -10,8 +10,8 @@ result_path = 'E:\\result\\'
 
 
 
-ipv4_gtm_config_open = open(ipv4_gtm_config_path, encoding='utf-8')
-ipv6_gtm_config_open = open(ipv6_gtm_config_path, encoding='utf-8')
+ipv4_gtm_config_open = open(ipv4_gtm_config_path, encoding='utf-8' ,errors='ignore')
+ipv6_gtm_config_open = open(ipv6_gtm_config_path, encoding='utf-8' ,errors='ignore')
 
 # poolconfig = open('ipv4_gtm_pool.txt', 'a', encoding='utf-8')
 
@@ -21,7 +21,7 @@ ipv6_gtm_config = ipv6_gtm_config_open.read()
 ipv4_gtm_config_open.close()
 ipv6_gtm_config_open.close()
 
-port_json_str_open = open('config/port.json', encoding='utf-8')
+port_json_str_open = open('config/port.json', encoding='utf-8' ,errors='ignore')
 port_json_str = port_json_str_open.read()
 
 port_json_str_open.close()

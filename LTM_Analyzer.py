@@ -21,22 +21,38 @@ LTM_V12_ROUTE_RE_STR = config.get('LTM', 'LTM_V12_ROUTE_RE_STR')
 LTM_V10_ROUTE_RE_STR = config.get('LTM', 'LTM_V10_ROUTE_RE_STR')
 LTM_V12_SELF_IP_RE_STR = config.get('LTM', 'LTM_V12_SELF_IP_RE_STR')
 LTM_V10_SELF_IP_RE_STR = config.get('LTM', 'LTM_V10_SELF_IP_RE_STR')
+LTM_HTTP_ACL_RE_STR = config.get('LTM', 'LTM_HTTP_ACL_RE_STR')
+LTM_SSH_ACL_RE_STR = config.get('LTM', 'LTM_SSH_ACL_RE_STR')
 NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
 NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
+NSAE_HTTP_ACL_RE_STR = config.get('LTM', 'NSAE_HTTP_ACL_RE_STR')
+NSAE_SSH_ACL_RE_STR = config.get('LTM', 'NSAE_SSH_ACL_RE_STR')
 CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
 CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
 CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
+
+LTM_V12_SSL_CERT_RE_STR = config.get('LTM', 'LTM_V12_SSL_CERT_RE_STR')
+LTM_V12_SSL_PROFILE_RE_STR = config.get('LTM', 'LTM_V12_SSL_PROFILE_RE_STR')
+LTM_V12_VS_RE_STR = config.get('LTM', 'LTM_V12_VS_RE_STR')
 
 nas_filename_pattern = re.compile(NAS_FILENAME, re.MULTILINE)
 ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
 ltm_v10_route_pattern = re.compile(LTM_V10_ROUTE_RE_STR, re.MULTILINE)
 ltm_v12_self_ip_pattern = re.compile(LTM_V12_SELF_IP_RE_STR, re.MULTILINE)
 ltm_v10_self_ip_pattern = re.compile(LTM_V10_SELF_IP_RE_STR, re.MULTILINE)
+ltm_http_acl_pattern = re.compile(LTM_HTTP_ACL_RE_STR, re.MULTILINE)
+ltm_ssh_acl_pattern = re.compile(LTM_SSH_ACL_RE_STR, re.MULTILINE)
 nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
 nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
+nsae_http_acl_pattern = re.compile(NSAE_HTTP_ACL_RE_STR, re.MULTILINE)
+nsae_ssh_acl_pattern = re.compile(NSAE_SSH_ACL_RE_STR, re.MULTILINE)
 citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
 citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
 citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
+
+ltm_v12_ssl_cert_pattern = re.compile(LTM_V12_SSL_CERT_RE_STR, re.MULTILINE)
+ltm_v12_ssl_profile_pattern = re.compile(LTM_V12_SSL_PROFILE_RE_STR, re.MULTILINE)
+ltm_v12_vs_pattern = re.compile(LTM_V12_VS_RE_STR, re.MULTILINE)
 
 
 ls_config_path = os.listdir(config_path)
@@ -79,10 +95,65 @@ def get_device_data(path):
         ltm_device_list.append(sheet2.cell(row, 1).value)
     return ltm_device_list
 
+def get_ssl_config(filepath,type,version):
+
+    ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ssl_config_open_str = ssl_config_open.read()
+    ltm_v12_ssl_cert_map = {}
+
+    ltm_v12_ssl_cert = ltm_v12_ssl_cert_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_cert:
+        name = item[0].strip()
+        cert_info = item[1].strip()
+        cert_cn_pattern = re.compile("[\s\S]*?CN=([\s\S]*?),[\s\S]*?", re.MULTILINE)
+        cert_cn = ''.join(cert_cn_pattern.findall(cert_info))
+        dns_info = item[2].strip()
+        if dns_info != 'none':
+            dns_info_pattern = re.compile("DNS:([\s\S]*?)[,|\"]", re.MULTILINE)
+            dns_names = dns_info_pattern.findall(dns_info)
+            if len(dns_names) != 0:
+                dnss = ''
+                for dns_name in dns_names:
+                    dnss = dnss + dns_name + '\n'
+                cert_cn = dnss.rstrip('\n')
+            else:
+                cert_cn = dns_info.split(':')[1].strip()
+
+        ltm_v12_ssl_cert_map[name] = cert_cn.strip()
+
+    ltm_v12_ssl_profile_map = {}
+    ltm_v12_ssl_profile = ltm_v12_ssl_profile_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_profile:
+        name = item[0].strip()
+        profile_cert = item[1].strip()
+        cert_cn = ltm_v12_ssl_cert_map[profile_cert]
+        ltm_v12_ssl_profile_map[name] = cert_cn
+
+    ltm_v12_vs_list = []
+    ltm_v12_vs = ltm_v12_vs_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_vs:
+        ltm_v12_vs_info = [''] * 4
+        vs_name = item[0].strip()
+        ltm_v12_vs_info[0] = vs_name
+        vs_ip_port = item[1].strip()
+        ltm_v12_vs_info[1] = vs_ip_port
+        profiles_info = item[2]
+        profiles_info_pattern = re.compile("^\s*([\s\S]*?)\s{\n\s*context[\s\S]*?}", re.MULTILINE)
+        profiles_list = profiles_info_pattern.findall(profiles_info)
+        for profile in profiles_list:
+            profile_name = profile.strip()
+            if profile_name in ltm_v12_ssl_profile_map.keys():
+                ltm_v12_vs_info[2] = profile_name
+                ltm_v12_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
+                break
+        ltm_v12_vs_list.append(ltm_v12_vs_info)
+
+    ssl_config_open.close()
+    return ltm_v12_vs_list
 
 def get_ltm_config(filepath,type,version):
     ltm_config = {}
-    ltm_config_open = open(filepath, encoding='utf-8')
+    ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ltm_config_open_str = ltm_config_open.read()
     routes = ''
     self_ips = ''
@@ -126,6 +197,14 @@ def get_ltm_config(filepath,type,version):
                 else:
                     self_ips = self_ips + ip + ' ' + vlan + '\n'
 
+        ltm_http_acl = ltm_http_acl_pattern.findall(ltm_config_open_str)
+        https_acls = ltm_http_acl[0].strip().replace(' ','\n')
+
+        ltm_ssh_acl = ltm_ssh_acl_pattern.findall(ltm_config_open_str)
+        ssh_acls = ltm_ssh_acl[0].strip().replace(' ','\n')
+
+        acls = 'https_acl:\n' + https_acls + '\nssh_acl:\n' + ssh_acls
+
     elif type == 'NSAE':
         nsae_ip = nsae_ip_pattern.findall(ltm_config_open_str)
         for item in nsae_ip:
@@ -144,6 +223,21 @@ def get_ltm_config(filepath,type,version):
                 patterns = r' +'
                 network = re.split(patterns,route)
                 routes = routes + network[0] + '/' + network[1] + ' gw ' + network[2] + '\n'
+
+        nsae_http_acl = nsae_http_acl_pattern.findall(ltm_config_open_str)
+        http_acls = ''
+        for item in nsae_http_acl:
+            acl_temp = item.strip().replace(' ','/')
+            http_acls = http_acls + acl_temp + '\n'
+
+        nsae_ssh_acl = nsae_ssh_acl_pattern.findall(ltm_config_open_str)
+        ssh_acls = ''
+        for item in nsae_ssh_acl:
+            acl_temp = item.strip().replace(' ','/')
+            ssh_acls = ssh_acls + acl_temp + '\n'
+
+        acls = 'https_acl:\n' + http_acls + 'ssh_acl:\n' + ssh_acls
+
 
     elif type == 'Citrix':
         citrix_ip = citrix_ip_pattern.findall(ltm_config_open_str)
@@ -205,6 +299,15 @@ def main():
     respath = result_path + "result_all_networks_" + now_time + ".xlsx"
     df.to_excel(respath, index=False)
     print('解析完成：'+respath)
+
+    ssl_vs_info_lsit = get_ssl_config(filepath, device_type, version)
+
+    df2 = pd.DataFrame(ssl_vs_info_lsit, columns=['vs名称', 'vs的ip和端口', 'ssl_profile名称', '域名'])
+    respath2 = result_path + "result_all_ssl_" + now_time + ".xlsx"
+
+    df2.to_excel(respath2, index=False)
+
+    print('解析完成：'+respath2)
 
 
 if __name__ == '__main__':
