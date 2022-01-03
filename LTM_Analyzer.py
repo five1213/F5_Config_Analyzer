@@ -233,9 +233,18 @@ def get_ssl_exp_config(filepath,type,version):
 
         ltm_v12_ssl_exp_cert_profile_list.append(ltm_v12_ssl_exp_cert_info)
 
+    ltm_v12_ssl_exp_cert_list = []
+    for cert_exp_name in ltm_v12_ssl_exp_cert_map.keys():
+        cert_exp_name_info = [''] * 2
+        cert_exp_name_info[0] = cert_exp_name
+        cert_exp_name_info[1] = ltm_v12_ssl_exp_cert_map[cert_exp_name]
+        ltm_v12_ssl_exp_cert_list.append(cert_exp_name_info)
+
     ssl_exp_info_map = {}
     ssl_exp_info_map['ssl_exp_can_del_info'] = ltm_v12_ssl_exp_cert_profile_list
     ssl_exp_info_map['ssl_exp_not_del_info'] = ltm_v12_ssl_exp_in_vs_list
+    ssl_exp_info_map['ssl_exp_cert_info'] = ltm_v12_ssl_exp_cert_list
+
 
     ssl_config_open.close()
 
@@ -474,6 +483,16 @@ def main():
     df4.to_excel(respath4, index=False)
 
     print('解析完成：'+respath4)
+
+
+    ltm_v12_ssl_exp_cert_list = ssl_exp_info_map['ssl_exp_cert_info']
+
+    df5 = pd.DataFrame(ltm_v12_ssl_exp_cert_list, columns=['证书名称', '证书过期时间'])
+    respath5 = result_path + "result_all_exp_ssl_cert_info_" + now_time + ".xlsx"
+
+    df5.to_excel(respath5, index=False)
+
+    print('解析完成：'+respath5)
 
 
 
