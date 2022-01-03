@@ -3,6 +3,8 @@ import datetime
 import fnmatch
 import os
 import re
+import time
+
 import pandas as pd
 from openpyxl import load_workbook  # 导入openpyxl
 
@@ -33,7 +35,10 @@ CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
 
 LTM_V12_SSL_CERT_RE_STR = config.get('LTM', 'LTM_V12_SSL_CERT_RE_STR')
 LTM_V12_SSL_PROFILE_RE_STR = config.get('LTM', 'LTM_V12_SSL_PROFILE_RE_STR')
-LTM_V12_VS_RE_STR = config.get('LTM', 'LTM_V12_VS_RE_STR')
+LTM_V12_SSL_VS_RE_STR = config.get('LTM', 'LTM_V12_SSL_VS_RE_STR')
+
+LTM_V12_SSL_CERT_EXP_RE_STR = config.get('LTM', 'LTM_V12_SSL_CERT_EXP_RE_STR')
+LTM_V12_SSL_PROFILE_EXP_RE_STR = config.get('LTM', 'LTM_V12_SSL_PROFILE_EXP_RE_STR')
 
 nas_filename_pattern = re.compile(NAS_FILENAME, re.MULTILINE)
 ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
@@ -52,7 +57,10 @@ citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
 
 ltm_v12_ssl_cert_pattern = re.compile(LTM_V12_SSL_CERT_RE_STR, re.MULTILINE)
 ltm_v12_ssl_profile_pattern = re.compile(LTM_V12_SSL_PROFILE_RE_STR, re.MULTILINE)
-ltm_v12_vs_pattern = re.compile(LTM_V12_VS_RE_STR, re.MULTILINE)
+ltm_v12_ssl_vs_pattern = re.compile(LTM_V12_SSL_VS_RE_STR, re.MULTILINE)
+
+ltm_v12_ssl_cert_exp_pattern = re.compile(LTM_V12_SSL_CERT_EXP_RE_STR, re.MULTILINE)
+ltm_v12_ssl_profile_exp_pattern = re.compile(LTM_V12_SSL_PROFILE_EXP_RE_STR, re.MULTILINE)
 
 
 ls_config_path = os.listdir(config_path)
@@ -95,6 +103,144 @@ def get_device_data(path):
         ltm_device_list.append(sheet2.cell(row, 1).value)
     return ltm_device_list
 
+def get_ssl_exp_config(filepath,type,version):
+
+    ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ssl_config_open_str = ssl_config_open.read()
+    ltm_v12_ssl_cert_map = {}
+    end_time = '2022-01-03 12:00:00'
+
+    timeArray = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
+
+    end_time_stamp =int(time.mktime(timeArray))
+
+    ltm_v12_ssl_exp_cert_map = {}
+    ltm_v12_ssl_cert = ltm_v12_ssl_cert_exp_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_cert:
+        name = item[0].strip()
+        expir_date = int(item[1].strip())
+        expir_date_int = expir_date
+
+        expir_date_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expir_date_int))
+
+        cert_info = item[2].strip()
+        cert_cn_pattern = re.compile("[\s\S]*?CN=([\s\S]*?),[\s\S]*?", re.MULTILINE)
+        cert_cn = ''.join(cert_cn_pattern.findall(cert_info))
+        dns_info = item[3].strip()
+        if dns_info != 'none':
+            dns_info_pattern = re.compile("DNS:([\s\S]*?)[,|\"]", re.MULTILINE)
+            dns_names = dns_info_pattern.findall(dns_info)
+            if len(dns_names) != 0:
+                dnss = ''
+                for dns_name in dns_names:
+                    dnss = dnss + dns_name + '\n'
+                cert_cn = dnss.rstrip('\n')
+            else:
+                cert_cn = dns_info.split(':')[1].strip()
+
+        ltm_v12_ssl_cert_map[name] = expir_date_str + "\n" + cert_cn.strip()
+        if expir_date <= end_time_stamp:
+            ltm_v12_ssl_exp_cert_map[name] = expir_date_str + "\n" + cert_cn.strip()
+
+    ltm_v12_ssl_profile_map = {}
+    ltm_v12_ssl_profile_exp_map = {}
+    ltm_v12_ssl_profile = ltm_v12_ssl_profile_exp_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_profile:
+        name = item[0].strip()
+        profile_cert = item[1].strip()
+        profile_chain_cert = item[2].strip()
+        profile_ca_cert = item[4].strip()
+        profile_cert_key = item[5].strip()
+
+        if profile_cert in ltm_v12_ssl_exp_cert_map.keys():
+            if name in ltm_v12_ssl_profile_exp_map:
+                ltm_v12_ssl_profile_exp_map[name] = ltm_v12_ssl_profile_exp_map[name] + "::cert:" + profile_cert + "::key:" + profile_cert_key + "::"
+            else:
+                ltm_v12_ssl_profile_exp_map[name] = "::cert:" + profile_cert + "::key:" + profile_cert_key + "::"
+
+        if profile_chain_cert in ltm_v12_ssl_exp_cert_map.keys():
+            if name in ltm_v12_ssl_profile_exp_map:
+                ltm_v12_ssl_profile_exp_map[name] = ltm_v12_ssl_profile_exp_map[name] + "::chain:" + profile_chain_cert + "::"
+            else:
+                ltm_v12_ssl_profile_exp_map[name] = "::chain:" +profile_chain_cert + "::"
+
+        if profile_ca_cert in ltm_v12_ssl_exp_cert_map.keys():
+            if name in ltm_v12_ssl_profile_exp_map:
+                ltm_v12_ssl_profile_exp_map[name] = ltm_v12_ssl_profile_exp_map[name] + "::ca:" + profile_ca_cert + "::"
+            else:
+                ltm_v12_ssl_profile_exp_map[name] = "::ca:" + profile_ca_cert + "::"
+
+        cert_cn = ltm_v12_ssl_cert_map[profile_cert]
+        ltm_v12_ssl_profile_map[name] = cert_cn
+
+    ltm_v12_ssl_vs_list = []
+    ltm_v12_ssl_exp_in_vs_list = []
+    ltm_v12_ssl_vs = ltm_v12_ssl_vs_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_vs:
+        ltm_v12_ssl_vs_info = [''] * 4
+        vs_name = item[0].strip()
+        ltm_v12_ssl_vs_info[0] = vs_name
+        vs_ip_port = item[1].strip()
+        ltm_v12_ssl_vs_info[1] = vs_ip_port
+        profiles_info = item[2]
+        profiles_info_pattern = re.compile("^\s*([\s\S]*?)\s{\n\s*context[\s\S]*?}", re.MULTILINE)
+        profiles_list = profiles_info_pattern.findall(profiles_info)
+        for profile in profiles_list:
+            profile_name = profile.strip()
+            if profile_name in ltm_v12_ssl_profile_map.keys():
+                ltm_v12_ssl_vs_info[2] = profile_name
+                ltm_v12_ssl_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
+                if profile_name in ltm_v12_ssl_profile_exp_map.keys():
+                    exp_in_vs = [''] * 7
+                    exp_in_vs[0] = vs_name
+                    exp_in_vs[1] = profile_name
+                    exp_cert_info = ltm_v12_ssl_profile_exp_map.pop(profile_name)
+                    cert_pattern = re.compile("::cert:([\s\S]*?)::", re.MULTILINE)
+                    cert_name = ''.join(cert_pattern.findall(exp_cert_info))
+                    exp_in_vs[2] = cert_name
+                    cert_key_pattern = re.compile("::key:([\s\S]*?)::", re.MULTILINE)
+                    cert_key_name = ''.join(cert_key_pattern.findall(exp_cert_info))
+                    exp_in_vs[3] = cert_key_name
+                    cert_chain_pattern = re.compile("::chain:([\s\S]*?)::", re.MULTILINE)
+                    cert_chain_name = ''.join(cert_chain_pattern.findall(exp_cert_info))
+                    exp_in_vs[4] = cert_chain_name
+                    cert_ca_pattern = re.compile("::ca:([\s\S]*?)::", re.MULTILINE)
+                    cert_ca_name = ''.join(cert_ca_pattern.findall(exp_cert_info))
+                    exp_in_vs[5] = cert_ca_name
+                    exp_in_vs[6] =  ltm_v12_ssl_cert_map[cert_name]
+                    ltm_v12_ssl_exp_in_vs_list.append(exp_in_vs)
+
+        ltm_v12_ssl_vs_list.append(ltm_v12_ssl_vs_info)
+
+    ltm_v12_ssl_exp_cert_profile_list = []
+    for profile in ltm_v12_ssl_profile_exp_map.keys():
+        ltm_v12_ssl_exp_cert_info = [''] * 6
+        ltm_v12_ssl_exp_cert_info[0] =  '' + profile
+        exp_cert_info = ltm_v12_ssl_profile_exp_map[profile]
+        cert_pattern = re.compile("::cert:([\s\S]*?)::", re.MULTILINE)
+        cert_name = ''.join(cert_pattern.findall(exp_cert_info))
+        ltm_v12_ssl_exp_cert_info[1] = cert_name
+        cert_key_pattern = re.compile("::key:([\s\S]*?)::", re.MULTILINE)
+        cert_key_name = ''.join(cert_key_pattern.findall(exp_cert_info))
+        ltm_v12_ssl_exp_cert_info[2] = cert_key_name
+        cert_chain_pattern = re.compile("::chain:([\s\S]*?)::", re.MULTILINE)
+        cert_chain_name = ''.join(cert_chain_pattern.findall(exp_cert_info))
+        ltm_v12_ssl_exp_cert_info[3]= cert_chain_name
+        cert_ca_pattern = re.compile("::ca:([\s\S]*?)::", re.MULTILINE)
+        cert_ca_name = ''.join(cert_ca_pattern.findall(exp_cert_info))
+        ltm_v12_ssl_exp_cert_info[4]= cert_ca_name
+        ltm_v12_ssl_exp_cert_info[5] = ltm_v12_ssl_cert_map[cert_name]
+
+        ltm_v12_ssl_exp_cert_profile_list.append(ltm_v12_ssl_exp_cert_info)
+
+    ssl_exp_info_map = {}
+    ssl_exp_info_map['ssl_exp_can_del_info'] = ltm_v12_ssl_exp_cert_profile_list
+    ssl_exp_info_map['ssl_exp_not_del_info'] = ltm_v12_ssl_exp_in_vs_list
+
+    ssl_config_open.close()
+
+    return ssl_exp_info_map
+
 def get_ssl_config(filepath,type,version):
 
     ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
@@ -129,29 +275,29 @@ def get_ssl_config(filepath,type,version):
         cert_cn = ltm_v12_ssl_cert_map[profile_cert]
         ltm_v12_ssl_profile_map[name] = cert_cn
 
-    ltm_v12_vs_list = []
-    ltm_v12_vs = ltm_v12_vs_pattern.findall(ssl_config_open_str)
-    for item in ltm_v12_vs:
-        ltm_v12_vs_info = [''] * 4
+    ltm_v12_ssl_vs_list = []
+    ltm_v12_ssl_vs = ltm_v12_ssl_vs_pattern.findall(ssl_config_open_str)
+    for item in ltm_v12_ssl_vs:
+        ltm_v12_ssl_vs_info = [''] * 4
         vs_name = item[0].strip()
-        ltm_v12_vs_info[0] = vs_name
+        ltm_v12_ssl_vs_info[0] = vs_name
         vs_ip_port = item[1].strip()
-        ltm_v12_vs_info[1] = vs_ip_port
+        ltm_v12_ssl_vs_info[1] = vs_ip_port
         profiles_info = item[2]
         profiles_info_pattern = re.compile("^\s*([\s\S]*?)\s{\n\s*context[\s\S]*?}", re.MULTILINE)
         profiles_list = profiles_info_pattern.findall(profiles_info)
         for profile in profiles_list:
             profile_name = profile.strip()
             if profile_name in ltm_v12_ssl_profile_map.keys():
-                ltm_v12_vs_info[2] = profile_name
-                ltm_v12_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
+                ltm_v12_ssl_vs_info[2] = profile_name
+                ltm_v12_ssl_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
                 break
-        ltm_v12_vs_list.append(ltm_v12_vs_info)
+        ltm_v12_ssl_vs_list.append(ltm_v12_ssl_vs_info)
 
     ssl_config_open.close()
-    return ltm_v12_vs_list
+    return ltm_v12_ssl_vs_list
 
-def get_ltm_config(filepath,type,version):
+def get_ltm_base_config(filepath,type,version):
     ltm_config = {}
     ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ltm_config_open_str = ltm_config_open.read()
@@ -284,7 +430,7 @@ def main():
         real_name = NAS_DEVICE_DIR[device]['real_name']
         mgmt_ip = NAS_DEVICE_DIR[device]['mgmt_ip']
         device_type = NAS_DEVICE_DIR[device]['type']
-        ltm_config = get_ltm_config(filepath,device_type,version)
+        ltm_config = get_ltm_base_config(filepath,device_type,version)
         device_net_info[0] = real_name
         device_net_info[1] = mgmt_ip
         device_net_info[2] = ltm_config['self_ip']
@@ -308,6 +454,27 @@ def main():
     df2.to_excel(respath2, index=False)
 
     print('解析完成：'+respath2)
+
+    ssl_exp_info_map = get_ssl_exp_config(filepath, device_type, version)
+
+    ssl_cert_exp_info_lsit = ssl_exp_info_map['ssl_exp_not_del_info']
+
+    df3 = pd.DataFrame(ssl_cert_exp_info_lsit, columns=['vs名称','ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','证书过期时间'])
+    respath3 = result_path + "result_all_exp_ssl_cert_not_del_" + now_time + ".xlsx"
+
+    df3.to_excel(respath3, index=False)
+
+    print('解析完成：'+respath3)
+
+    ssl_cert_exp_can_del_lsit = ssl_exp_info_map['ssl_exp_can_del_info']
+
+    df4 = pd.DataFrame(ssl_cert_exp_can_del_lsit, columns=['ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','证书过期时间'])
+    respath4 = result_path + "result_all_exp_ssl_cert_can_del_" + now_time + ".xlsx"
+
+    df4.to_excel(respath4, index=False)
+
+    print('解析完成：'+respath4)
+
 
 
 if __name__ == '__main__':
