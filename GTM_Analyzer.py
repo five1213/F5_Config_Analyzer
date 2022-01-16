@@ -24,6 +24,9 @@ ipv6_gtm_config_open.close()
 port_json_str_open = open('config/port.json', encoding='utf-8' ,errors='ignore')
 port_json_str = port_json_str_open.read()
 
+ports_dir = json.loads(port_json_str)
+ports_data = dict([val, key] for key, val in ports_dir.items())
+
 port_json_str_open.close()
 
 config = configparser.ConfigParser()
@@ -43,9 +46,6 @@ pool_pattern = re.compile(GTM_POOL_RE_STR, re.MULTILINE)
 wideip_pools_pattern = re.compile(GTM_WIDEIP_POOLS_RE_STR, re.MULTILINE)
 wideip_pattern = re.compile(GTM_WIDEIP_RE_STR, re.MULTILINE)
 
-ports_dir = json.loads(port_json_str)
-ports_data = dict([val, key] for key, val in ports_dir.items())
-
 server_ip_data_v4 = {}
 server_ip_data_v6 = {}
 server_ip_data_disable_v4 = {}
@@ -56,7 +56,6 @@ pool_mx_data_v4 = {}
 pool_aaaa_data_v6 = {}
 pool_cname_data_v6 = {}
 pool_mx_data_v6 = {}
-
 
 def servers_format(vs_info, server_name, server_ip, server_status,version):
     vs_info_ret = {}
