@@ -216,10 +216,10 @@ def get_ltm_config(filepath,type,version):
                 session = item2[6].strip()
                 state = item2[7].strip()
                 members_info_detail = members_info_detail + ip_port_info + ' ' + session + ' ' + state + ' l:' + con_limit + ' p:' + priority + ' r:' + ratio  + '\n'
-                if session == 'monitor-enabled':
+                if session == 'user-enabled' or session == 'monitor-enabled':
                     members_info_simple  = members_info_simple + ip_port_info + '\n'
 
-                members_info = '::members_info_simple:' + members_info_simple + '::members_info_detail:' + members_info_detail
+                members_info = '##members_info_simple#' + members_info_simple + '##members_info_detail#' + members_info_detail + '##'
 
         monitor = item[3].strip()
         ltm_v12_pool_map[name] = '::balanc_mode:'+balanc_mode+'::monitor:'+monitor+'::members_info:'+members_info+'::'
@@ -301,16 +301,16 @@ def get_ltm_config(filepath,type,version):
                 vs_members_info_pattern = re.compile("::members_info:([\s\S]*?)::", re.MULTILINE)
                 vs_members_info = ''.join(vs_members_info_pattern.findall(vs_pool_info_str))
                 if vs_members_info != 'none':
-                    members_info_simple_pattern = re.compile("::members_info_simple:([\s\S]*?)::", re.MULTILINE)
+                    members_info_simple_pattern = re.compile("##members_info_simple#([\s\S]*?)##", re.MULTILINE)
                     members_info_simple = ''.join(members_info_simple_pattern.findall(vs_pool_info_str))
-                    members_info_detail_pattern = re.compile("::members_info_detail:([\s\S]*?)::", re.MULTILINE)
+                    members_info_detail_pattern = re.compile("##members_info_detail#([\s\S]*?)##", re.MULTILINE)
                     members_info_detail = ''.join(members_info_detail_pattern.findall(vs_pool_info_str))
 
         vs[11] = vs_pool_name
         vs[12] = vs_balanc_mode
         vs[13] = vs_pool_monitor
-        vs[14] = members_info_simple
-        vs[15] = members_info_detail
+        vs[14] = members_info_simple.strip('\n')
+        vs[15] = members_info_detail.strip('\n')
 
         vs_profiles = item[7].strip().strip('{').strip('}')
         fastl4_profile_name = ''
@@ -373,7 +373,7 @@ def get_ssl_exp_config(filepath,type,version):
     ssl_config_open_str = ssl_config_open.read()
     ltm_v12_ssl_cert_map = {}
 
-    ltm_v12_ssl_cert_map['default.crt'] = '2099-12-31 22:00:00' + '\n' + 'f5.com'
+    ltm_v12_ssl_cert_map['default.crt'] = "::expir:" + '2099-12-31 22:00:00' + '::domain:' + 'f5.com'+ '::'
     end_time = '2022-01-03 12:00:00'
 
     timeArray = time.strptime(end_time, "%Y-%m-%d %H:%M:%S")
@@ -404,9 +404,9 @@ def get_ssl_exp_config(filepath,type,version):
             else:
                 cert_cn = dns_info.split(':')[1].strip()
 
-        ltm_v12_ssl_cert_map[name] = expir_date_str + "\n" + cert_cn.strip()
+        ltm_v12_ssl_cert_map[name] = "::expir:" + expir_date_str + '::domain:' + cert_cn.strip()+ '::'
         if expir_date <= end_time_stamp:
-            ltm_v12_ssl_exp_cert_map[name] = expir_date_str + "\n" + cert_cn.strip()
+            ltm_v12_ssl_exp_cert_map[name] = "::expir:" + expir_date_str + '::domain:' + cert_cn.strip()+ '::'
 
     ltm_v12_ssl_profile_map = {}
     ltm_v12_ssl_profile_exp_map = {}
@@ -457,7 +457,7 @@ def get_ssl_exp_config(filepath,type,version):
                 ltm_v12_ssl_vs_info[2] = profile_name
                 ltm_v12_ssl_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
                 if profile_name in ltm_v12_ssl_profile_exp_map.keys():
-                    exp_in_vs = [''] * 7
+                    exp_in_vs = [''] * 8
                     exp_in_vs[0] = vs_name
                     exp_in_vs[1] = profile_name
                     exp_cert_info = ltm_v12_ssl_profile_exp_map.pop(profile_name)
@@ -473,14 +473,20 @@ def get_ssl_exp_config(filepath,type,version):
                     cert_ca_pattern = re.compile("::ca:([\s\S]*?)::", re.MULTILINE)
                     cert_ca_name = ''.join(cert_ca_pattern.findall(exp_cert_info))
                     exp_in_vs[5] = cert_ca_name
-                    exp_in_vs[6] =  ltm_v12_ssl_cert_map[cert_name]
+                    cert_expir_domain =  ltm_v12_ssl_cert_map[cert_name]
+                    cert_domain_pattern = re.compile("::domain:([\s\S]*?)::", re.MULTILINE)
+                    cert_domain = ''.join(cert_domain_pattern.findall(cert_expir_domain))
+                    exp_in_vs[6] = cert_domain
+                    cert_expir_pattern = re.compile("::expir:([\s\S]*?)::", re.MULTILINE)
+                    cert_expir = ''.join(cert_expir_pattern.findall(cert_expir_domain))
+                    exp_in_vs[7] = cert_expir
                     ltm_v12_ssl_exp_in_vs_list.append(exp_in_vs)
 
         ltm_v12_ssl_vs_list.append(ltm_v12_ssl_vs_info)
 
     ltm_v12_ssl_exp_cert_profile_list = []
     for profile in ltm_v12_ssl_profile_exp_map.keys():
-        ltm_v12_ssl_exp_cert_info = [''] * 6
+        ltm_v12_ssl_exp_cert_info = [''] * 7
         ltm_v12_ssl_exp_cert_info[0] =  '' + profile
         exp_cert_info = ltm_v12_ssl_profile_exp_map[profile]
         cert_pattern = re.compile("::cert:([\s\S]*?)::", re.MULTILINE)
@@ -495,15 +501,28 @@ def get_ssl_exp_config(filepath,type,version):
         cert_ca_pattern = re.compile("::ca:([\s\S]*?)::", re.MULTILINE)
         cert_ca_name = ''.join(cert_ca_pattern.findall(exp_cert_info))
         ltm_v12_ssl_exp_cert_info[4]= cert_ca_name
-        ltm_v12_ssl_exp_cert_info[5] = ltm_v12_ssl_cert_map[cert_name]
+        cert_expir_domain = ltm_v12_ssl_cert_map[cert_name]
+        cert_domain_pattern = re.compile("::domain:([\s\S]*?)::", re.MULTILINE)
+        cert_domain = ''.join(cert_domain_pattern.findall(cert_expir_domain))
+        ltm_v12_ssl_exp_cert_info[5] = cert_domain
+        cert_expir_pattern = re.compile("::expir:([\s\S]*?)::", re.MULTILINE)
+        cert_expir = ''.join(cert_expir_pattern.findall(cert_expir_domain))
+        ltm_v12_ssl_exp_cert_info[6] = cert_expir
 
         ltm_v12_ssl_exp_cert_profile_list.append(ltm_v12_ssl_exp_cert_info)
 
     ltm_v12_ssl_exp_cert_list = []
     for cert_exp_name in ltm_v12_ssl_exp_cert_map.keys():
-        cert_exp_name_info = [''] * 2
+        cert_exp_name_info = [''] * 3
         cert_exp_name_info[0] = cert_exp_name
-        cert_exp_name_info[1] = ltm_v12_ssl_exp_cert_map[cert_exp_name]
+        cert_expir_domain = ltm_v12_ssl_exp_cert_map[cert_exp_name]
+        cert_domain_pattern = re.compile("::domain:([\s\S]*?)::", re.MULTILINE)
+        cert_domain = ''.join(cert_domain_pattern.findall(cert_expir_domain))
+        cert_exp_name_info[1] = cert_domain
+        cert_expir_pattern = re.compile("::expir:([\s\S]*?)::", re.MULTILINE)
+        cert_expir = ''.join(cert_expir_pattern.findall(cert_expir_domain))
+        cert_exp_name_info[2] = cert_expir
+
         ltm_v12_ssl_exp_cert_list.append(cert_exp_name_info)
 
     ssl_exp_info_map = {}
@@ -521,15 +540,17 @@ def get_ssl_config(filepath,type,version):
     ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ssl_config_open_str = ssl_config_open.read()
     ltm_v12_ssl_cert_map = {}
-    ltm_v12_ssl_cert_map['default.crt'] = '2099-12-31 22:00:00' + '\n' + 'f5.com'
+    ltm_v12_ssl_cert_map['default.crt'] = "::expir:" + '2099-12-31 22:00:00' + '::domain:' + 'f5.com'+ '::'
 
     ltm_v12_ssl_cert = ltm_v12_ssl_cert_pattern.findall(ssl_config_open_str)
     for item in ltm_v12_ssl_cert:
         name = item[0].strip()
-        cert_info = item[1].strip()
+        expir_date = int(item[1].strip())
+        expir_date_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(expir_date))
+        cert_info = item[2].strip()
         cert_cn_pattern = re.compile("[\s\S]*?CN=([\s\S]*?),[\s\S]*?", re.MULTILINE)
         cert_cn = ''.join(cert_cn_pattern.findall(cert_info))
-        dns_info = item[2].strip()
+        dns_info = item[3].strip()
         if dns_info != 'none':
             dns_info_pattern = re.compile("DNS:([\s\S]*?)[,|\"]", re.MULTILINE)
             dns_names = dns_info_pattern.findall(dns_info)
@@ -541,7 +562,7 @@ def get_ssl_config(filepath,type,version):
             else:
                 cert_cn = dns_info.split(':')[1].strip()
 
-        ltm_v12_ssl_cert_map[name] = cert_cn.strip()
+        ltm_v12_ssl_cert_map[name] =  "::expir:" + expir_date_str + '::domain:' + cert_cn.strip() + '::'
 
     ltm_v12_ssl_profile_map = {}
     ltm_v12_ssl_profile = ltm_v12_ssl_profile_pattern.findall(ssl_config_open_str)
@@ -554,11 +575,26 @@ def get_ssl_config(filepath,type,version):
     ltm_v12_ssl_vs_list = []
     ltm_v12_ssl_vs = ltm_v12_ssl_vs_pattern.findall(ssl_config_open_str)
     for item in ltm_v12_ssl_vs:
-        ltm_v12_ssl_vs_info = [''] * 4
+        ltm_v12_ssl_vs_info = [''] * 5
         vs_name = item[0].strip()
         ltm_v12_ssl_vs_info[0] = vs_name
-        vs_ip_port = item[1].strip()
-        ltm_v12_ssl_vs_info[1] = vs_ip_port
+        vs_ip_port_str = item[1].strip()
+        vs_ip_port_info = ''
+        if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[\s\S]*?$", vs_ip_port_str):
+            ipports = vs_ip_port_str.split(":")
+            ip = ipports[0]
+            port = ipports[1]
+            if port in ports_data.keys():
+                port = ports_data[port]
+            vs_ip_port_info = ip + ":" + port
+        else:
+            ipports = vs_ip_port_str.split(".")
+            ip = ipports[0]
+            port = ipports[1]
+            if port in ports_data.keys():
+                port = ports_data[port]
+            vs_ip_port_info = ip + "." + port
+        ltm_v12_ssl_vs_info[1] = vs_ip_port_info
         profiles_info = item[2]
         profiles_info_pattern = re.compile("^\s*([\s\S]*?)\s{\n\s*context[\s\S]*?}", re.MULTILINE)
         profiles_list = profiles_info_pattern.findall(profiles_info)
@@ -566,7 +602,13 @@ def get_ssl_config(filepath,type,version):
             profile_name = profile.strip()
             if profile_name in ltm_v12_ssl_profile_map.keys():
                 ltm_v12_ssl_vs_info[2] = profile_name
-                ltm_v12_ssl_vs_info[3] = ltm_v12_ssl_profile_map[profile_name]
+                cert_expir_domain = ltm_v12_ssl_profile_map[profile_name]
+                cert_domain_pattern = re.compile("::domain:([\s\S]*?)::", re.MULTILINE)
+                cert_domain = ''.join(cert_domain_pattern.findall(cert_expir_domain))
+                ltm_v12_ssl_vs_info[3] = cert_domain
+                cert_expir_pattern = re.compile("::expir:([\s\S]*?)::", re.MULTILINE)
+                cert_expir = ''.join(cert_expir_pattern.findall(cert_expir_domain))
+                ltm_v12_ssl_vs_info[4] = cert_expir
                 break
         ltm_v12_ssl_vs_list.append(ltm_v12_ssl_vs_info)
 
@@ -724,7 +766,7 @@ def main():
 
     ssl_vs_info_lsit = get_ssl_config(filepath, device_type, version)
 
-    df2 = pd.DataFrame(ssl_vs_info_lsit, columns=['vs名称', 'vs的ip和端口', 'ssl_profile名称', '域名'])
+    df2 = pd.DataFrame(ssl_vs_info_lsit, columns=['vs名称', 'vs的ip和端口', 'ssl_profile名称','域名','证书过期时间'])
     respath2 = result_path + "result_all_ssl_" + now_time + ".xlsx"
 
     df2.to_excel(respath2, index=False)
@@ -735,7 +777,7 @@ def main():
 
     ssl_cert_exp_info_lsit = ssl_exp_info_map['ssl_exp_not_del_info']
 
-    df3 = pd.DataFrame(ssl_cert_exp_info_lsit, columns=['vs名称','ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','证书过期时间'])
+    df3 = pd.DataFrame(ssl_cert_exp_info_lsit, columns=['vs名称','ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
     respath3 = result_path + "result_all_exp_ssl_cert_not_del_" + now_time + ".xlsx"
 
     df3.to_excel(respath3, index=False)
@@ -744,7 +786,7 @@ def main():
 
     ssl_cert_exp_can_del_lsit = ssl_exp_info_map['ssl_exp_can_del_info']
 
-    df4 = pd.DataFrame(ssl_cert_exp_can_del_lsit, columns=['ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','证书过期时间'])
+    df4 = pd.DataFrame(ssl_cert_exp_can_del_lsit, columns=['ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
     respath4 = result_path + "result_all_exp_ssl_cert_can_del_" + now_time + ".xlsx"
 
     df4.to_excel(respath4, index=False)
@@ -754,7 +796,7 @@ def main():
 
     ltm_v12_ssl_exp_cert_list = ssl_exp_info_map['ssl_exp_cert_info']
 
-    df5 = pd.DataFrame(ltm_v12_ssl_exp_cert_list, columns=['证书名称', '证书过期时间'])
+    df5 = pd.DataFrame(ltm_v12_ssl_exp_cert_list, columns=['证书名称','域名','证书过期时间'])
     respath5 = result_path + "result_all_exp_ssl_cert_info_" + now_time + ".xlsx"
 
     df5.to_excel(respath5, index=False)
