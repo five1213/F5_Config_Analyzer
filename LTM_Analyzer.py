@@ -37,6 +37,14 @@ NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
 NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
 NSAE_HTTP_ACL_RE_STR = config.get('LTM', 'NSAE_HTTP_ACL_RE_STR')
 NSAE_SSH_ACL_RE_STR = config.get('LTM', 'NSAE_SSH_ACL_RE_STR')
+
+NSAE_SLB_REAL_RE_STR = config.get('LTM', 'NSAE_SLB_REAL_RE_STR')
+NSAE_SLB_REAL_DISABLE_RE_STR = config.get('LTM', 'NSAE_SLB_REAL_DISABLE_RE_STR')
+NSAE_SLB_GROUP_MEMBER_RE_STR = config.get('LTM', 'NSAE_SLB_GROUP_MEMBER_RE_STR')
+NSAE_SLB_VIRTUAL_RE_STR = config.get('LTM', 'NSAE_SLB_VIRTUAL_RE_STR')
+NSAE_SLB_POLICY_RE_STR = config.get('LTM', 'NSAE_SLB_POLICY_RE_STR')
+NSAE_SSL_HOST_RE_STR = config.get('LTM', 'NSAE_SSL_HOST_RE_STR')
+
 CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
 CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
 CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
@@ -68,6 +76,14 @@ nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
 nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
 nsae_http_acl_pattern = re.compile(NSAE_HTTP_ACL_RE_STR, re.MULTILINE)
 nsae_ssh_acl_pattern = re.compile(NSAE_SSH_ACL_RE_STR, re.MULTILINE)
+
+nsae_slb_real_pattern = re.compile(NSAE_SLB_REAL_RE_STR, re.MULTILINE)
+nsae_slb_real_disable_pattern = re.compile(NSAE_SLB_REAL_DISABLE_RE_STR, re.MULTILINE)
+nsae_slb_group_member_pattern = re.compile(NSAE_SLB_GROUP_MEMBER_RE_STR, re.MULTILINE)
+nsae_slb_virtual_pattern = re.compile(NSAE_SLB_VIRTUAL_RE_STR, re.MULTILINE)
+nsae_slb_policy_pattern = re.compile(NSAE_SLB_POLICY_RE_STR, re.MULTILINE)
+nsae_ssl_host_pattern = re.compile(NSAE_SSL_HOST_RE_STR, re.MULTILINE)
+
 citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
 citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
 citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
@@ -731,6 +747,79 @@ def get_ltm_base_config(filepath,type,version):
     ltm_config['acls'] = acls.rstrip('\n')
     ltm_config_open.close()
     return ltm_config
+
+def get_nsae_ssl_config(filepath,type,version):
+    ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ssl_config_open_str = ssl_config_open.read()
+    nsae_slb_real_map = {}
+    nsae_slb_real_list = nsae_slb_real_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_real_list:
+        nsae_slb_real_name = item[0].replace('\s*','')
+        nsae_slb_real_ip = item[1].replace('\s*','')
+        nsae_slb_real_port = item[2].replace('\s*','')
+        nsae_slb_real_limit = item[3].replace('\s*', '')
+        nsae_slb_real_check = item[3].replace('\s*', '')
+        nsae_slb_real_map[nsae_slb_real_name] = "::ipport:" + nsae_slb_real_ip + ':' + nsae_slb_real_port + '::limit:' + nsae_slb_real_limit + "::check:" + nsae_slb_real_check + '::'
+
+    nsae_slb_real_disable_map = {}
+    nsae_slb_real_disable_list = nsae_slb_real_disable_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_real_disable_list:
+        nsae_slb_real_name = item[0].replace('\s*','')
+        nsae_slb_real_disable_map[nsae_slb_real_name] = "disable"
+
+    nsae_slb_group_member_map = {}
+    nsae_slb_group_member_list = nsae_slb_group_member_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_group_member_list:
+        nsae_slb_pool_name = item[0].replace('\s*','')
+        nsae_slb_pool_member = item[1].replace('\s*','')
+        nsae_slb_pool_info = nsae_slb_pool_member + '\n'
+        if nsae_slb_pool_name in nsae_slb_group_member_map.keys():
+            nsae_slb_pool_info = nsae_slb_pool_info + nsae_slb_group_member_map[nsae_slb_pool_name]
+
+        nsae_slb_group_member_map[nsae_slb_real_name] = nsae_slb_pool_info
+
+    nsae_slb_virtual_map = {}
+    nsae_slb_virtual_list = nsae_slb_virtual_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_virtual_list:
+        nsae_slb_vs_name = item[0].replace('\s*', '')
+        nsae_slb_vs_ip = item[1].replace('\s*', '')
+        nsae_slb_vs_port = item[2].replace('\s*', '')
+        nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
+        nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
+
+    nsae_slb_policy_map = {}
+    nsae_slb_policy_list = nsae_slb_policy_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_policy_list:
+        nsae_slb_vs_name = item[0].replace('\s*', '')
+        nsae_slb_vs_pool = item[1].replace('\s*', '')
+        nsae_slb_policy_map[nsae_slb_vs_name] = nsae_slb_vs_pool
+        if nsae_slb_vs_name not in nsae_slb_virtual_map.keys():
+            vs_info_pattern = re.compile('^s\w*\s*v\w*\s*\w*\s*\"'+ nsae_slb_vs_name + '\"\s*([\s\S]*?)\s*(\d{1,5})\s*a\w*\s*', re.MULTILINE)
+            vs_info_list = vs_info_pattern.findall(ssl_config_open_str)
+            for item in vs_info_list:
+                nsae_slb_vs_ip = item[0].replace('\s*', '')
+                nsae_slb_vs_port = item[1].replace('\s*', '')
+                nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
+                nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
+
+    nsae_ssl_host_map = {}
+    nsae_ssl_host_list = nsae_ssl_host_pattern.findall(ssl_config_open_str)
+    for item in nsae_ssl_host_list:
+        nsae_ssl_host_name = item[0].replace('\s*', '')
+        nsae_slb_vs_name = item[1].replace('\s*', '')
+        nsae_ssl_host_map[nsae_slb_vs_name] = nsae_ssl_host_name
+
+    nsae_ssl_vs_list = []
+    for vs_name in nsae_slb_virtual_map.keys():
+        nsae_ssl_vs_info = []*6
+        nsae_ssl_vs_info[0] = vs_name
+        nsae_ssl_vs_info[1] = nsae_slb_virtual_map[vs_name]
+
+
+
+
+
+
 
 
 def main():
