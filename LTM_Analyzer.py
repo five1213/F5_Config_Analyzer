@@ -749,76 +749,120 @@ def get_ltm_base_config(filepath,type,version):
     return ltm_config
 
 def get_nsae_ssl_config(filepath,type,version):
+    b = re.sub('\s*','','N-FMETS_10.6.12.41_tcp8081_m  ember')
+    print(b)
     ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ssl_config_open_str = ssl_config_open.read()
     nsae_slb_real_map = {}
     nsae_slb_real_list = nsae_slb_real_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_real_list:
-        nsae_slb_real_name = item[0].replace('\s*','')
-        nsae_slb_real_ip = item[1].replace('\s*','')
-        nsae_slb_real_port = item[2].replace('\s*','')
-        nsae_slb_real_limit = item[3].replace('\s*', '')
-        nsae_slb_real_check = item[3].replace('\s*', '')
-        nsae_slb_real_map[nsae_slb_real_name] = "::ipport:" + nsae_slb_real_ip + ':' + nsae_slb_real_port + '::limit:' + nsae_slb_real_limit + "::check:" + nsae_slb_real_check + '::'
+        nsae_slb_real_name = re.sub('\s*','',item[0])
+        nsae_slb_real_ip = re.sub('\s*','',item[1])
+        nsae_slb_real_port = re.sub('\s*','',item[2])
+        nsae_slb_real_limit = re.sub('\s*','',item[3])
+        nsae_slb_real_check = re.sub('\s*','',item[4])
+        nsae_slb_real_map[nsae_slb_real_name] = "##ipport#" + nsae_slb_real_ip + ':' + nsae_slb_real_port + '##limit#' + nsae_slb_real_limit + "##check#" + nsae_slb_real_check + '##'
 
     nsae_slb_real_disable_map = {}
     nsae_slb_real_disable_list = nsae_slb_real_disable_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_real_disable_list:
-        nsae_slb_real_name = item[0].replace('\s*','')
+        nsae_slb_real_name = re.sub('\s*','',item)
         nsae_slb_real_disable_map[nsae_slb_real_name] = "disable"
 
     nsae_slb_group_member_map = {}
     nsae_slb_group_member_list = nsae_slb_group_member_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_group_member_list:
-        nsae_slb_pool_name = item[0].replace('\s*','')
-        nsae_slb_pool_member = item[1].replace('\s*','')
+        nsae_slb_pool_name = re.sub('\s*','',item[0])
+        nsae_slb_pool_member = re.sub('\s*','',item[1])
         nsae_slb_pool_info = nsae_slb_pool_member + '\n'
         if nsae_slb_pool_name in nsae_slb_group_member_map.keys():
             nsae_slb_pool_info = nsae_slb_pool_info + nsae_slb_group_member_map[nsae_slb_pool_name]
 
-        nsae_slb_group_member_map[nsae_slb_real_name] = nsae_slb_pool_info
+        nsae_slb_group_member_map[nsae_slb_pool_name] = nsae_slb_pool_info
 
     nsae_slb_virtual_map = {}
     nsae_slb_virtual_list = nsae_slb_virtual_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_virtual_list:
-        nsae_slb_vs_name = item[0].replace('\s*', '')
-        nsae_slb_vs_ip = item[1].replace('\s*', '')
-        nsae_slb_vs_port = item[2].replace('\s*', '')
+        nsae_slb_vs_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_ip = re.sub('\s*','',item[1])
+        nsae_slb_vs_port = re.sub('\s*','',item[2])
         nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
         nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
 
     nsae_slb_policy_map = {}
     nsae_slb_policy_list = nsae_slb_policy_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_policy_list:
-        nsae_slb_vs_name = item[0].replace('\s*', '')
-        nsae_slb_vs_pool = item[1].replace('\s*', '')
+        nsae_slb_vs_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_pool = re.sub('\s*','',item[1])
         nsae_slb_policy_map[nsae_slb_vs_name] = nsae_slb_vs_pool
-        if nsae_slb_vs_name not in nsae_slb_virtual_map.keys():
-            vs_info_pattern = re.compile('^s\w*\s*v\w*\s*\w*\s*\"'+ nsae_slb_vs_name + '\"\s*([\s\S]*?)\s*(\d{1,5})\s*a\w*\s*', re.MULTILINE)
-            vs_info_list = vs_info_pattern.findall(ssl_config_open_str)
-            for item in vs_info_list:
-                nsae_slb_vs_ip = item[0].replace('\s*', '')
-                nsae_slb_vs_port = item[1].replace('\s*', '')
-                nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
-                nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
 
     nsae_ssl_host_map = {}
     nsae_ssl_host_list = nsae_ssl_host_pattern.findall(ssl_config_open_str)
     for item in nsae_ssl_host_list:
-        nsae_ssl_host_name = item[0].replace('\s*', '')
-        nsae_slb_vs_name = item[1].replace('\s*', '')
+        nsae_ssl_host_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_name = re.sub('\s*','',item[1])
         nsae_ssl_host_map[nsae_slb_vs_name] = nsae_ssl_host_name
 
     nsae_ssl_vs_list = []
     for vs_name in nsae_slb_virtual_map.keys():
-        nsae_ssl_vs_info = []*6
-        nsae_ssl_vs_info[0] = vs_name
-        nsae_ssl_vs_info[1] = nsae_slb_virtual_map[vs_name]
+        nsae_ssl_vs_info = ['']*6
+        nsae_ssl_vs_info[0] = nsae_slb_virtual_map[vs_name]
+        nsae_ssl_vs_info[1] = vs_name
+        nsae_ssl_vs_info[2] = ''
+        if vs_name in nsae_ssl_host_map.keys():
+            nsae_ssl_vs_info[2] = nsae_ssl_host_map[vs_name]
+        nsae_ssl_vs_pool_name = ''
+        nsae_ssl_vs_member_simple = ''
+        nsae_ssl_vs_member_detail = ''
+        if vs_name in nsae_slb_policy_map.keys():
+            nsae_ssl_vs_pool_name = nsae_slb_policy_map[vs_name].strip()
+            if nsae_ssl_vs_pool_name in nsae_slb_group_member_map.keys():
+                real_members = nsae_slb_group_member_map[nsae_ssl_vs_pool_name].strip()
+                real_members_list = real_members.split('\n')
+                vs_member_detail_info = ''
+                vs_member_simple_info = ''
+                for real_member in real_members_list:
+                    if real_member != '' and real_member is not None:
+                        real_member_info = nsae_slb_real_map[real_member]
+                        real_member_ipport_pattern = re.compile("##ipport#([\s\S]*?)##", re.MULTILINE)
+                        real_member_ipport = ''.join(real_member_ipport_pattern.findall(real_member_info))
+                        real_member_limit_pattern = re.compile("##limit#([\s\S]*?)##", re.MULTILINE)
+                        real_member_limit = ''.join(real_member_limit_pattern.findall(real_member_info))
+                        real_member_check_pattern = re.compile("##check#([\s\S]*?)##", re.MULTILINE)
+                        real_member_check = ''.join(real_member_check_pattern.findall(real_member_info))
+                        if real_member in nsae_slb_real_disable_map.keys():
+                            vs_member_detail_info += real_member_ipport + ' disable' + ' l:' + real_member_limit + ' c:' + real_member_check + '\n'
+                        else:
+                            vs_member_detail_info += real_member_ipport + ' enable' + ' l:' + real_member_limit + ' c:' + real_member_check + '\n'
+                            vs_member_simple_info += real_member_ipport + '\n'
 
+                nsae_ssl_vs_member_simple = vs_member_simple_info.strip('\n')
+                nsae_ssl_vs_member_detail = vs_member_detail_info.strip('\n')
+            elif nsae_ssl_vs_pool_name in nsae_slb_real_map.keys():
+                real_member_info = nsae_slb_real_map[nsae_ssl_vs_pool_name]
+                real_member_ipport_pattern = re.compile("##ipport#([\s\S]*?)##", re.MULTILINE)
+                real_member_ipport = ''.join(real_member_ipport_pattern.findall(real_member_info))
+                real_member_limit_pattern = re.compile("##limit#([\s\S]*?)##", re.MULTILINE)
+                real_member_limit = ''.join(real_member_limit_pattern.findall(real_member_info))
+                real_member_check_pattern = re.compile("##check#([\s\S]*?)##", re.MULTILINE)
+                real_member_check = ''.join(real_member_check_pattern.findall(real_member_info))
+                vs_member_detail_info = real_member_ipport + ' enable' + ' l:' + real_member_limit + ' c:' + real_member_check
+                vs_member_simple_info = ''
+                if nsae_ssl_vs_pool_name in nsae_slb_real_disable_map.keys():
+                    vs_member_detail_info = real_member_ipport + ' disable' + ' l:' + real_member_limit + ' c:' + real_member_check
+                else:
+                    vs_member_simple_info = vs_member_simple_info + real_member_ipport
 
+                nsae_ssl_vs_member_simple = vs_member_simple_info
+                nsae_ssl_vs_member_detail = vs_member_detail_info
 
+        nsae_ssl_vs_info[3] = nsae_ssl_vs_pool_name
+        nsae_ssl_vs_info[4] = nsae_ssl_vs_member_simple
+        nsae_ssl_vs_info[5] = nsae_ssl_vs_member_detail
+        nsae_ssl_vs_list.append(nsae_ssl_vs_info)
 
-
+    ssl_config_open.close()
+    return nsae_ssl_vs_list
 
 
 
@@ -837,71 +881,81 @@ def main():
         real_name = NAS_DEVICE_DIR[device]['real_name']
         mgmt_ip = NAS_DEVICE_DIR[device]['mgmt_ip']
         device_type = NAS_DEVICE_DIR[device]['type']
-        ltm_config = get_ltm_base_config(filepath,device_type,version)
-        device_net_info[0] = real_name
-        device_net_info[1] = mgmt_ip
-        device_net_info[2] = ltm_config['self_ip']
-        device_net_info[3] = ltm_config['float_ip']
-        device_net_info[4] = ltm_config['route']
-        device_net_info[5] = ltm_config['acls']
-        networks[device] = device_net_info
+        # ltm_config = get_ltm_base_config(filepath,device_type,version)
+        # device_net_info[0] = real_name
+        # device_net_info[1] = mgmt_ip
+        # device_net_info[2] = ltm_config['self_ip']
+        # device_net_info[3] = ltm_config['float_ip']
+        # device_net_info[4] = ltm_config['route']
+        # device_net_info[5] = ltm_config['acls']
+        # networks[device] = device_net_info
 
-    result_all_networks_list = networks.values()
-    df = pd.DataFrame(result_all_networks_list, columns=['设备名称','管理ip','互联ip','浮动ip','路由','访问控制'])
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    respath = result_path + "result_all_networks_" + now_time + ".xlsx"
-    df.to_excel(respath, index=False)
-    print('解析完成：'+respath)
+    # result_all_networks_list = networks.values()
+    # df = pd.DataFrame(result_all_networks_list, columns=['设备名称','管理ip','互联ip','浮动ip','路由','访问控制'])
 
-    ssl_vs_info_lsit = get_ssl_config(filepath, device_type, version)
+    # respath = result_path + "result_all_networks_" + now_time + ".xlsx"
+    # df.to_excel(respath, index=False)
+    # print('解析完成：'+respath)
+    #
+    # ssl_vs_info_lsit = get_ssl_config(filepath, device_type, version)
+    #
+    # df2 = pd.DataFrame(ssl_vs_info_lsit, columns=['vs名称', 'vs的ip和端口', 'ssl_profile名称','域名','证书过期时间'])
+    # respath2 = result_path + "result_all_ssl_" + now_time + ".xlsx"
+    #
+    # df2.to_excel(respath2, index=False)
+    #
+    # print('解析完成：'+respath2)
+    #
+    # ssl_exp_info_map = get_ssl_exp_config(filepath, device_type, version)
+    #
+    # ssl_cert_exp_info_lsit = ssl_exp_info_map['ssl_exp_not_del_info']
+    #
+    # df3 = pd.DataFrame(ssl_cert_exp_info_lsit, columns=['vs名称','ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
+    # respath3 = result_path + "result_all_exp_ssl_cert_not_del_" + now_time + ".xlsx"
+    #
+    # df3.to_excel(respath3, index=False)
+    #
+    # print('解析完成：'+respath3)
+    #
+    # ssl_cert_exp_can_del_lsit = ssl_exp_info_map['ssl_exp_can_del_info']
+    #
+    # df4 = pd.DataFrame(ssl_cert_exp_can_del_lsit, columns=['ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
+    # respath4 = result_path + "result_all_exp_ssl_cert_can_del_" + now_time + ".xlsx"
+    #
+    # df4.to_excel(respath4, index=False)
+    #
+    # print('解析完成：'+respath4)
+    #
+    #
+    # ltm_v12_ssl_exp_cert_list = ssl_exp_info_map['ssl_exp_cert_info']
+    #
+    # df5 = pd.DataFrame(ltm_v12_ssl_exp_cert_list, columns=['证书名称','域名','证书过期时间'])
+    # respath5 = result_path + "result_all_exp_ssl_cert_info_" + now_time + ".xlsx"
+    #
+    # df5.to_excel(respath5, index=False)
+    #
+    # print('解析完成：'+respath5)
+    #
+    #
+    # ltm_v12_vs_list =  get_ltm_config(filepath, type, version)
+    #
+    # df6 = pd.DataFrame(ltm_v12_vs_list, columns=['vs名称', 'vs连接数限制', 'vs的ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
+    # respath6 = result_path + "result_all_vs_info_" + now_time + ".xlsx"
+    #
+    # df6.to_excel(respath6, index=False)
+    #
+    # print('解析完成：'+respath6)
 
-    df2 = pd.DataFrame(ssl_vs_info_lsit, columns=['vs名称', 'vs的ip和端口', 'ssl_profile名称','域名','证书过期时间'])
-    respath2 = result_path + "result_all_ssl_" + now_time + ".xlsx"
 
-    df2.to_excel(respath2, index=False)
+    nsae_ssl_vs_list =  get_nsae_ssl_config(filepath, type, version)
 
-    print('解析完成：'+respath2)
+    df7 = pd.DataFrame(nsae_ssl_vs_list, columns=['ssl_vs_ipport', 'ssl_vs_name', 'ssl_host', 'ssl_pool_name', 'members_info_simple', 'members_info_detail'])
+    respath7 = result_path + "nsae_ssl_vs_info_" + now_time + ".xlsx"
 
-    ssl_exp_info_map = get_ssl_exp_config(filepath, device_type, version)
+    df7.to_excel(respath7, index=False)
 
-    ssl_cert_exp_info_lsit = ssl_exp_info_map['ssl_exp_not_del_info']
-
-    df3 = pd.DataFrame(ssl_cert_exp_info_lsit, columns=['vs名称','ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
-    respath3 = result_path + "result_all_exp_ssl_cert_not_del_" + now_time + ".xlsx"
-
-    df3.to_excel(respath3, index=False)
-
-    print('解析完成：'+respath3)
-
-    ssl_cert_exp_can_del_lsit = ssl_exp_info_map['ssl_exp_can_del_info']
-
-    df4 = pd.DataFrame(ssl_cert_exp_can_del_lsit, columns=['ssl_profile名称', '证书名称', '私钥名称', 'chain证书名称','CA证书名称','域名','证书过期时间'])
-    respath4 = result_path + "result_all_exp_ssl_cert_can_del_" + now_time + ".xlsx"
-
-    df4.to_excel(respath4, index=False)
-
-    print('解析完成：'+respath4)
-
-
-    ltm_v12_ssl_exp_cert_list = ssl_exp_info_map['ssl_exp_cert_info']
-
-    df5 = pd.DataFrame(ltm_v12_ssl_exp_cert_list, columns=['证书名称','域名','证书过期时间'])
-    respath5 = result_path + "result_all_exp_ssl_cert_info_" + now_time + ".xlsx"
-
-    df5.to_excel(respath5, index=False)
-
-    print('解析完成：'+respath5)
-
-
-    ltm_v12_vs_list =  get_ltm_config(filepath, type, version)
-
-    df6 = pd.DataFrame(ltm_v12_vs_list, columns=['vs名称', 'vs连接数限制', 'vs的ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
-    respath6 = result_path + "result_all_vs_info_" + now_time + ".xlsx"
-
-    df6.to_excel(respath6, index=False)
-
-    print('解析完成：'+respath6)
-
+    print('解析完成：'+respath7)
 
 if __name__ == '__main__':
     main()
