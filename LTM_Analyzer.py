@@ -749,8 +749,6 @@ def get_ltm_base_config(filepath,type,version):
     return ltm_config
 
 def get_nsae_ssl_config(filepath,type,version):
-    b = re.sub('\s*','','N-FMETS_10.6.12.41_tcp8081_m  ember')
-    print(b)
     ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ssl_config_open_str = ssl_config_open.read()
     nsae_slb_real_map = {}
