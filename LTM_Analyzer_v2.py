@@ -19,10 +19,13 @@ device_path_map = {}
 
 device_list_path = ''
 config_path_os = ''
+result_path = ''
 if config_os == 'windows':
     config_path_os = config_path + '\\'
+    result_path = config_path_os + 'result\\'
 elif config_os == 'linux':
     config_path_os = config_path + '/'
+    result_path = config_path_os + 'result/'
 
 device_list_path = config_path_os + '设备列表.xlsx'
 
@@ -44,6 +47,13 @@ LTM_V12_POOL_RE_STR = config.get('LTM', 'LTM_V12_POOL_RE_STR')
 LTM_V12_POOL_MEMBER_RE_STR = config.get('LTM', 'LTM_V12_POOL_MEMBER_RE_STR')
 LTM_V12_VS_RE_STR = config.get('LTM', 'LTM_V12_VS_RE_STR')
 
+NSAE_SLB_REAL_RE_STR = config.get('LTM', 'NSAE_SLB_REAL_RE_STR')
+NSAE_SLB_REAL_DISABLE_RE_STR = config.get('LTM', 'NSAE_SLB_REAL_DISABLE_RE_STR')
+NSAE_SLB_GROUP_MEMBER_RE_STR = config.get('LTM', 'NSAE_SLB_GROUP_MEMBER_RE_STR')
+NSAE_SLB_VIRTUAL_RE_STR = config.get('LTM', 'NSAE_SLB_VIRTUAL_RE_STR')
+NSAE_SLB_POLICY_RE_STR = config.get('LTM', 'NSAE_SLB_POLICY_RE_STR')
+NSAE_SSL_HOST_RE_STR = config.get('LTM', 'NSAE_SSL_HOST_RE_STR')
+
 ltm_v12_source_persist_pattern = re.compile(LTM_V12_SOURCE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_cookie_persist_pattern = re.compile(LTM_V12_COOKIE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_http_profile_pattern = re.compile(LTM_V12_HTTP_PROFILE_RE_STR, re.MULTILINE)
@@ -52,6 +62,13 @@ ltm_v12_fastl4_profile_pattern = re.compile(LTM_V12_FASTL4_PROFILE_RE_STR, re.MU
 ltm_v12_pool_pattern = re.compile(LTM_V12_POOL_RE_STR, re.MULTILINE)
 ltm_v12_pool_member_pattern = re.compile(LTM_V12_POOL_MEMBER_RE_STR, re.MULTILINE)
 ltm_v12_vs_pattern = re.compile(LTM_V12_VS_RE_STR, re.MULTILINE)
+
+nsae_slb_real_pattern = re.compile(NSAE_SLB_REAL_RE_STR, re.MULTILINE)
+nsae_slb_real_disable_pattern = re.compile(NSAE_SLB_REAL_DISABLE_RE_STR, re.MULTILINE)
+nsae_slb_group_member_pattern = re.compile(NSAE_SLB_GROUP_MEMBER_RE_STR, re.MULTILINE)
+nsae_slb_virtual_pattern = re.compile(NSAE_SLB_VIRTUAL_RE_STR, re.MULTILINE)
+nsae_slb_policy_pattern = re.compile(NSAE_SLB_POLICY_RE_STR, re.MULTILINE)
+nsae_ssl_host_pattern = re.compile(NSAE_SSL_HOST_RE_STR, re.MULTILINE)
 
 def get_device_list():
     wb = load_workbook(device_list_path)  # 打开Excel
@@ -81,7 +98,11 @@ def get_device_list():
             for device in devices:
                 devicename,extension = os.path.splitext(device)
                 if extension == '.txt' or extension == '.TXT':
-                    device_path_map[devicename] = config_path_os + device
+                    if config_os == 'windows':
+                        device_path_map[devicename] = new_file_path +'\\'+ device
+                    elif config_os == 'linux':
+                        device_path_map[devicename] = new_file_path + '/' + device
+
 
 
 def get_ltm_config(filepath,type,version):
@@ -95,7 +116,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_source_persist = ltm_v12_source_persist_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_source_persist:
         name = item[0].strip()
-        source_persist_info = item[1].strip()
+        source_persist_info = item[1]
         source_persist_pattern = re.compile("\s*timeout\s(\d*)", re.MULTILINE)
         time_out = ''.join(source_persist_pattern.findall(source_persist_info))
         if time_out == '':
@@ -107,7 +128,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_cookie_persist = ltm_v12_cookie_persist_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_cookie_persist:
         name = item[0].strip()
-        cookie_persist_info = item[1].strip()
+        cookie_persist_info = item[1]
         is_encrypt_pattern = re.compile("\s*cookie-encryption\s(\w*)", re.MULTILINE)
         is_encrypt = ''.join(is_encrypt_pattern.findall(cookie_persist_info))
         cookie_name_pattern = re.compile("\s*cookie-name\s(\w*)", re.MULTILINE)
@@ -115,7 +136,7 @@ def get_ltm_config(filepath,type,version):
         method_pattern = re.compile("\s*method\s(\w*)", re.MULTILINE)
         method = ''.join(method_pattern.findall(cookie_persist_info))
         if method == '':
-            method == 'insert'
+            method = 'insert'
         ltm_v12_cookie_persist_map[name] = '##encrypt#'+is_encrypt+'##name#'+cookie_name+'##method#'+method+'##'
 
     ltm_v12_http_profile_map = {}
@@ -123,7 +144,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_http_profile = ltm_v12_http_profile_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_http_profile:
         name = item[0].strip()
-        http_profile_info = item[1].strip()
+        http_profile_info = item[1]
         http_profile_pattern = re.compile("\s*insert-xforwarded-for\s(\w*)", re.MULTILINE)
         xforwarded = ''.join(http_profile_pattern.findall(http_profile_info))
         ltm_v12_http_profile_map[name] = xforwarded
@@ -133,7 +154,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_tcp_profile = ltm_v12_tcp_profile_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_tcp_profile:
         name = item[0].strip()
-        tcp_profile_info = item[1].strip()
+        tcp_profile_info = item[1]
         idle_timeout_pattern = re.compile("\s*idle-timeout\s(\d*)", re.MULTILINE)
         idle_timeout = ''.join(idle_timeout_pattern.findall(tcp_profile_info))
         if idle_timeout == '':
@@ -145,7 +166,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_fastl4_profile = ltm_v12_fastl4_profile_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_fastl4_profile:
         name = item[0].strip()
-        fastl4_profile_info = item[1].strip()
+        fastl4_profile_info = item[1]
         idle_timeout_pattern = re.compile("\s*idle-timeout\s(\d*)", re.MULTILINE)
         idle_timeout = ''.join(idle_timeout_pattern.findall(fastl4_profile_info))
         if idle_timeout == '':
@@ -160,7 +181,7 @@ def get_ltm_config(filepath,type,version):
     ltm_v12_pool = ltm_v12_pool_pattern.findall(ltm_config_open_str)
     for item in ltm_v12_pool:
         name = item[0].strip()
-        pool_info = item[1].strip()
+        pool_info = item[1]
         balanc_mode_pattern = re.compile("\s*load-balancing-mode\s([\s\S]*?)\n", re.MULTILINE)
         balanc_mode = ''.join(balanc_mode_pattern.findall(pool_info))
         if balanc_mode == '':
@@ -224,7 +245,7 @@ def get_ltm_config(filepath,type,version):
 
                 members_info = '##members_info_simple#' + members_info_simple + '##members_info_detail#' + members_info_detail + '##'
 
-        ltm_v12_pool_map[name] = '##balanc_mode#'+balanc_mode+'##monitor#'+monitor+'##members_info#'+members_info+'##'
+        ltm_v12_pool_map[name] = '##balanc_mode#'+balanc_mode+'##monitor#'+monitor + members_info
 
     ltm_v12_vs_list = []
     ltm_v12_vs = ltm_v12_vs_pattern.findall(ltm_config_open_str)
@@ -233,7 +254,7 @@ def get_ltm_config(filepath,type,version):
         vs = ['']*28
         name = item[0].strip()
         vs[0] = name
-        vs_info = item[1].strip()
+        vs_info = item[1]
 
         vs_conn_limit_pattern = re.compile("\s*connection-limit\s(\d*)", re.MULTILINE)
         vs_conn_limit = ''.join(vs_conn_limit_pattern.findall(vs_info))
@@ -263,8 +284,8 @@ def get_ltm_config(filepath,type,version):
 
         vs_status_pattern = re.compile("\s*(disabled)\n", re.MULTILINE)
         vs_status = ''.join(vs_status_pattern.findall(vs_info))
-        if vs_status == '':
-            vs_status == 'enabled'
+        if vs_status.strip() == '':
+            vs_status = 'enabled'
         vs[3] = vs_status
 
         vs_protocol_pattern = re.compile("\s*ip-protocol\s([\s\S]*?)\n", re.MULTILINE)
@@ -280,7 +301,7 @@ def get_ltm_config(filepath,type,version):
         persist_cookie_encrypt = ''
         persist_cookie_name = ''
         persist_cookie_method = ''
-        if vs_persist_str != 'none' or vs_persist_str != '':
+        if vs_persist_str != 'none' and vs_persist_str != '':
             vs_persist_str_pattern = re.compile("{\s*([\s\S]*?)\s{\n", re.MULTILINE)
             vs_persist_name = ''.join(vs_persist_str_pattern.findall(vs_persist_str))
             if vs_persist_name in ltm_v12_source_persist_map.keys():
@@ -311,7 +332,7 @@ def get_ltm_config(filepath,type,version):
         vs_pool_monitor = ''
         members_info_simple = ''
         members_info_detail = ''
-        if vs_pool != 'none' or vs_pool != '':
+        if vs_pool != 'none' and vs_pool != '':
             vs_pool_name = vs_pool
             if vs_pool_name in ltm_v12_pool_map.keys():
                 vs_pool_info_str = ltm_v12_pool_map[vs_pool_name]
@@ -319,13 +340,10 @@ def get_ltm_config(filepath,type,version):
                 vs_balanc_mode = ''.join(vs_balanc_mode_pattern.findall(vs_pool_info_str))
                 vs_pool_monitor_pattern = re.compile("##monitor#([\s\S]*?)##", re.MULTILINE)
                 vs_pool_monitor = ''.join(vs_pool_monitor_pattern.findall(vs_pool_info_str))
-                vs_members_info_pattern = re.compile("##members_info#([\s\S]*?)##", re.MULTILINE)
-                vs_members_info = ''.join(vs_members_info_pattern.findall(vs_pool_info_str))
-                if vs_members_info != 'none' or vs_members_info != '':
-                    members_info_simple_pattern = re.compile("##members_info_simple#([\s\S]*?)##", re.MULTILINE)
-                    members_info_simple = ''.join(members_info_simple_pattern.findall(vs_pool_info_str))
-                    members_info_detail_pattern = re.compile("##members_info_detail#([\s\S]*?)##", re.MULTILINE)
-                    members_info_detail = ''.join(members_info_detail_pattern.findall(vs_pool_info_str))
+                members_info_simple_pattern = re.compile("##members_info_simple#([\s\S]*?)##", re.MULTILINE)
+                members_info_simple = ''.join(members_info_simple_pattern.findall(vs_pool_info_str))
+                members_info_detail_pattern = re.compile("##members_info_detail#([\s\S]*?)##", re.MULTILINE)
+                members_info_detail = ''.join(members_info_detail_pattern.findall(vs_pool_info_str))
 
         vs[11] = vs_pool_name
         vs[12] = vs_balanc_mode
@@ -379,54 +397,159 @@ def get_ltm_config(filepath,type,version):
 
         vs_snat_pool_str_pattern = re.compile("\s*source-address-translation\s(none|{[\s\S]*?})\n", re.MULTILINE)
         vs_snat_pool_str = ''.join(vs_snat_pool_str_pattern.findall(vs_info))
-
         vs_snat_pool_name = 'none'
-        if vs_snat_pool_str != 'none':
+        if vs_snat_pool_str != 'none' and vs_snat_pool_str != '':
             vs_snat_pool_pattern = re.compile("\s*pool\s([\s\S]*?)\n", re.MULTILINE)
             vs_snat_pool_name = ''.join(vs_snat_pool_pattern.findall(vs_snat_pool_str))
-
         vs[25] = vs_snat_pool_name
-        vs_source_port = item[10].strip()
+
+        vs_source_port_pattern = re.compile("\s*source-port\s([\s\S]*?)\n", re.MULTILINE)
+        vs_source_port = ''.join(vs_source_port_pattern.findall(vs_info))
         vs[26] = vs_source_port
-        vs_vlans = item[11].strip()
+
+        vs_vlans_pattern = re.compile("\s*vlans\s(none|{[\s\S]*?})\n", re.MULTILINE)
+        vs_vlans = ''.join(vs_vlans_pattern.findall(vs_info))
         vs[27] = vs_vlans
+
         ltm_v12_vs_list.append(vs)
 
     return ltm_v12_vs_list
 
+def get_nsae_ssl_config(filepath,type,version):
+    ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ssl_config_open_str = ssl_config_open.read()
+    nsae_slb_real_map = {}
+    nsae_slb_real_list = nsae_slb_real_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_real_list:
+        nsae_slb_real_name = re.sub('\s*','',item[0])
+        nsae_slb_real_ip = re.sub('\s*','',item[1])
+        nsae_slb_real_port = re.sub('\s*','',item[2])
+        nsae_slb_real_limit = re.sub('\s*','',item[3])
+        nsae_slb_real_check = re.sub('\s*','',item[4])
+        nsae_slb_real_map[nsae_slb_real_name] = "##ipport#" + nsae_slb_real_ip + ':' + nsae_slb_real_port + '##limit#' + nsae_slb_real_limit + "##check#" + nsae_slb_real_check + '##'
+
+    nsae_slb_real_disable_map = {}
+    nsae_slb_real_disable_list = nsae_slb_real_disable_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_real_disable_list:
+        nsae_slb_real_name = re.sub('\s*','',item)
+        nsae_slb_real_disable_map[nsae_slb_real_name] = "disable"
+
+    nsae_slb_group_member_map = {}
+    nsae_slb_group_member_list = nsae_slb_group_member_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_group_member_list:
+        nsae_slb_pool_name = re.sub('\s*','',item[0])
+        nsae_slb_pool_member = re.sub('\s*','',item[1])
+        nsae_slb_pool_info = nsae_slb_pool_member + '\n'
+        if nsae_slb_pool_name in nsae_slb_group_member_map.keys():
+            nsae_slb_pool_info = nsae_slb_pool_info + nsae_slb_group_member_map[nsae_slb_pool_name]
+
+        nsae_slb_group_member_map[nsae_slb_pool_name] = nsae_slb_pool_info
+
+    nsae_slb_virtual_map = {}
+    nsae_slb_virtual_list = nsae_slb_virtual_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_virtual_list:
+        nsae_slb_vs_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_ip = re.sub('\s*','',item[1])
+        nsae_slb_vs_port = re.sub('\s*','',item[2])
+        nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
+        nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
+
+    nsae_slb_policy_map = {}
+    nsae_slb_policy_list = nsae_slb_policy_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_policy_list:
+        nsae_slb_vs_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_pool = re.sub('\s*','',item[1])
+        nsae_slb_policy_map[nsae_slb_vs_name] = nsae_slb_vs_pool
+
+    nsae_ssl_host_map = {}
+    nsae_ssl_host_list = nsae_ssl_host_pattern.findall(ssl_config_open_str)
+    for item in nsae_ssl_host_list:
+        nsae_ssl_host_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_name = re.sub('\s*','',item[1])
+        nsae_ssl_host_map[nsae_slb_vs_name] = nsae_ssl_host_name
+
+    nsae_ssl_vs_list = []
+    for vs_name in nsae_slb_virtual_map.keys():
+        nsae_ssl_vs_info = ['']*6
+        nsae_ssl_vs_info[0] = nsae_slb_virtual_map[vs_name]
+        nsae_ssl_vs_info[2] = vs_name
+        nsae_ssl_vs_info[1] = ''
+        if vs_name in nsae_ssl_host_map.keys():
+            nsae_ssl_vs_info[1] = nsae_ssl_host_map[vs_name]
+        nsae_ssl_vs_pool_name = ''
+        nsae_ssl_vs_member_simple = ''
+        nsae_ssl_vs_member_detail = ''
+        if vs_name in nsae_slb_policy_map.keys():
+            nsae_ssl_vs_pool_name = nsae_slb_policy_map[vs_name].strip()
+            if nsae_ssl_vs_pool_name in nsae_slb_group_member_map.keys():
+                real_members = nsae_slb_group_member_map[nsae_ssl_vs_pool_name].strip()
+                real_members_list = real_members.split('\n')
+                vs_member_detail_info = ''
+                vs_member_simple_info = ''
+                for real_member in real_members_list:
+                    if real_member != '' and real_member is not None:
+                        real_member_info = nsae_slb_real_map[real_member]
+                        real_member_ipport_pattern = re.compile("##ipport#([\s\S]*?)##", re.MULTILINE)
+                        real_member_ipport = ''.join(real_member_ipport_pattern.findall(real_member_info))
+                        real_member_limit_pattern = re.compile("##limit#([\s\S]*?)##", re.MULTILINE)
+                        real_member_limit = ''.join(real_member_limit_pattern.findall(real_member_info))
+                        real_member_check_pattern = re.compile("##check#([\s\S]*?)##", re.MULTILINE)
+                        real_member_check = ''.join(real_member_check_pattern.findall(real_member_info))
+                        if real_member in nsae_slb_real_disable_map.keys():
+                            vs_member_detail_info += real_member_ipport + ' disable' + ' l:' + real_member_limit + ' c:' + real_member_check + '\n'
+                        else:
+                            vs_member_detail_info += real_member_ipport + ' enable' + ' l:' + real_member_limit + ' c:' + real_member_check + '\n'
+                            vs_member_simple_info += real_member_ipport + '\n'
+
+                nsae_ssl_vs_member_simple = vs_member_simple_info.strip('\n')
+                nsae_ssl_vs_member_detail = vs_member_detail_info.strip('\n')
+            elif nsae_ssl_vs_pool_name in nsae_slb_real_map.keys():
+                real_member_info = nsae_slb_real_map[nsae_ssl_vs_pool_name]
+                real_member_ipport_pattern = re.compile("##ipport#([\s\S]*?)##", re.MULTILINE)
+                real_member_ipport = ''.join(real_member_ipport_pattern.findall(real_member_info))
+                real_member_limit_pattern = re.compile("##limit#([\s\S]*?)##", re.MULTILINE)
+                real_member_limit = ''.join(real_member_limit_pattern.findall(real_member_info))
+                real_member_check_pattern = re.compile("##check#([\s\S]*?)##", re.MULTILINE)
+                real_member_check = ''.join(real_member_check_pattern.findall(real_member_info))
+                vs_member_detail_info = real_member_ipport + ' enable' + ' l:' + real_member_limit + ' c:' + real_member_check
+                vs_member_simple_info = ''
+                if nsae_ssl_vs_pool_name in nsae_slb_real_disable_map.keys():
+                    vs_member_detail_info = real_member_ipport + ' disable' + ' l:' + real_member_limit + ' c:' + real_member_check
+                else:
+                    vs_member_simple_info = vs_member_simple_info + real_member_ipport
+
+                nsae_ssl_vs_member_simple = vs_member_simple_info
+                nsae_ssl_vs_member_detail = vs_member_detail_info
+
+        nsae_ssl_vs_info[3] = nsae_ssl_vs_pool_name
+        nsae_ssl_vs_info[4] = nsae_ssl_vs_member_simple
+        nsae_ssl_vs_info[5] = nsae_ssl_vs_member_detail
+        nsae_ssl_vs_list.append(nsae_ssl_vs_info)
+
+    ssl_config_open.close()
+    return nsae_ssl_vs_list
 
 def main():
     get_device_list()
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    ltm_writer = pd.ExcelWriter(config_path_os + 'ltm_'+now_time+'.xlsx')
-    nsae_writer = pd.ExcelWriter(config_path_os + 'nsae_'+now_time+'.xlsx')
-    citrix_writer = pd.ExcelWriter(config_path_os + 'citrix_'+now_time+'.xlsx')
-    gtm_writer = pd.ExcelWriter(config_path_os + 'gtm_'+now_time+'.xlsx')
+    ltm_writer = pd.ExcelWriter(result_path + 'ltm_'+now_time+'.xlsx')
+    nsae_writer = pd.ExcelWriter(result_path + 'nsae_'+now_time+'.xlsx')
+    citrix_writer = pd.ExcelWriter(result_path + 'citrix_'+now_time+'.xlsx')
+    gtm_writer = pd.ExcelWriter(result_path + 'gtm_'+now_time+'.xlsx')
 
     for device_name in device_analyzer_list:
-        print(device_name)
-        print(device_path_map[device_name])
-        print(device_list_map[device_name])
+
+        file_path = device_path_map[device_name]
         type = device_list_map[device_name]['type']
+        version = device_list_map[device_name]['version']
+        print(file_path)
         if type == 'ltm':
-            ltm_list = []
-            vs = [''] * 4
-            vs[0] = device_name
-            vs[1] = type
-            vs[2] = device_list_map[device_name]['version']
-            vs[3] = device_path_map[device_name]
-            ltm_list.append(vs)
-            ltm_df = pd.DataFrame(ltm_list, columns=['device_name', 'type', 'version', 'path'])
+            ltm_list = get_ltm_config(file_path,type,version)
+            ltm_df = pd.DataFrame(ltm_list, columns=['vs_name', 'vs_conn', 'vs的ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
             ltm_df.to_excel(ltm_writer, sheet_name=device_name, index=False)
         elif type == 'nsae':
-            nsae_list = []
-            nsae = [''] * 4
-            nsae[0] = device_name
-            nsae[1] = type
-            nsae[2] = device_list_map[device_name]['version']
-            nsae[3] = device_path_map[device_name]
-            nsae_list.append(nsae)
-            nsae_df = pd.DataFrame(nsae_list, columns=['device_name', 'type', 'version', 'path'])
+            nsae_ssl_vs_list = get_nsae_ssl_config(file_path, type, version)
+            nsae_df = pd.DataFrame(nsae_ssl_vs_list, columns=['ssl_vs_ipport', 'ssl_host', 'ssl_vs_name', 'ssl_pool_name', 'members_info_simple', 'members_info_detail'])
             nsae_df.to_excel(nsae_writer, sheet_name=device_name, index=False)
         elif type == 'citrix':
             citrix_list = []
