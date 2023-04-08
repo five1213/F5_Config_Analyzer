@@ -42,6 +42,7 @@ LTM_V12_TCP_PROFILE_RE_STR = config.get('LTM', 'LTM_V12_TCP_PROFILE_RE_STR')
 LTM_V12_FASTL4_PROFILE_RE_STR = config.get('LTM', 'LTM_V12_FASTL4_PROFILE_RE_STR')
 LTM_V12_POOL_RE_STR = config.get('LTM', 'LTM_V12_POOL_RE_STR')
 LTM_V12_POOL_MEMBER_RE_STR = config.get('LTM', 'LTM_V12_POOL_MEMBER_RE_STR')
+LTM_V12_VS_RE_STR = config.get('LTM', 'LTM_V12_VS_RE_STR')
 
 ltm_v12_source_persist_pattern = re.compile(LTM_V12_SOURCE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_cookie_persist_pattern = re.compile(LTM_V12_COOKIE_PERSIST_RE_STR, re.MULTILINE)
@@ -50,6 +51,7 @@ ltm_v12_tcp_profile_pattern = re.compile(LTM_V12_TCP_PROFILE_RE_STR, re.MULTILIN
 ltm_v12_fastl4_profile_pattern = re.compile(LTM_V12_FASTL4_PROFILE_RE_STR, re.MULTILINE)
 ltm_v12_pool_pattern = re.compile(LTM_V12_POOL_RE_STR, re.MULTILINE)
 ltm_v12_pool_member_pattern = re.compile(LTM_V12_POOL_MEMBER_RE_STR, re.MULTILINE)
+ltm_v12_vs_pattern = re.compile(LTM_V12_VS_RE_STR, re.MULTILINE)
 
 def get_device_list():
     wb = load_workbook(device_list_path)  # 打开Excel
@@ -164,6 +166,9 @@ def get_ltm_config(filepath,type,version):
         if balanc_mode == '':
             balanc_mode = 'round-robin'
 
+        monitor_pattern = re.compile("\s*monitor\s([\s\S]*?)\n", re.MULTILINE)
+        monitor = ''.join(monitor_pattern.findall(pool_info))
+
         members_str_pattern = re.compile("\s*members\s(none|{[\s\S]*?}\n\s*monitor)", re.MULTILINE)
         members_str = ''.join(members_str_pattern.findall(pool_info))
 
@@ -189,21 +194,206 @@ def get_ltm_config(filepath,type,version):
                     if port in ports_data.keys():
                         port = ports_data[port]
                     ip_port_info = ip + "." + port
-                con_limit = item2[1].strip()
-                dynamic_ratio = item2[2].strip()
-                mem_monitor = item2[3].strip()
-                priority = item2[4].strip()
-                ratio = item2[5].strip()
-                session = item2[6].strip()
-                state = item2[7].strip()
+
+                info_member = item2[1].strip()
+
+                session_pattern = re.compile("\s*session\s([\s\S]*?)\n", re.MULTILINE)
+                session = ''.join(session_pattern.findall(info_member))
+
+                state_pattern = re.compile("\s*state\s([\s\S]*?)\n", re.MULTILINE)
+                state = ''.join(state_pattern.findall(info_member))
+
+                con_limit_pattern = re.compile("\s*connection-limit\s(\d*)", re.MULTILINE)
+                con_limit = ''.join(con_limit_pattern.findall(info_member))
+                if con_limit == '':
+                    con_limit = '0'
+
+                priority_pattern = re.compile("\s*priority-group\s(\d*)", re.MULTILINE)
+                priority = ''.join(priority_pattern.findall(info_member))
+                if priority == '':
+                    priority = '0'
+
+                ratio_pattern = re.compile("\s*ratio\s(\d*)", re.MULTILINE)
+                ratio = ''.join(ratio_pattern.findall(info_member))
+                if ratio == '':
+                    ratio = '0'
+
                 members_info_detail = members_info_detail + ip_port_info + ' ' + session + ' ' + state + ' l:' + con_limit + ' p:' + priority + ' r:' + ratio  + '\n'
                 if session == 'user-enabled' or session == 'monitor-enabled':
                     members_info_simple  = members_info_simple + ip_port_info + '\n'
 
                 members_info = '##members_info_simple#' + members_info_simple + '##members_info_detail#' + members_info_detail + '##'
 
-        monitor = item[3].strip()
-        ltm_v12_pool_map[name] = '::balanc_mode:'+balanc_mode+'::monitor:'+monitor+'::members_info:'+members_info+'::'
+        ltm_v12_pool_map[name] = '##balanc_mode#'+balanc_mode+'##monitor#'+monitor+'##members_info#'+members_info+'##'
+
+    ltm_v12_vs_list = []
+    ltm_v12_vs = ltm_v12_vs_pattern.findall(ltm_config_open_str)
+
+    for item in ltm_v12_vs:
+        vs = ['']*28
+        name = item[0].strip()
+        vs[0] = name
+        vs_info = item[1].strip()
+
+        vs_conn_limit_pattern = re.compile("\s*connection-limit\s(\d*)", re.MULTILINE)
+        vs_conn_limit = ''.join(vs_conn_limit_pattern.findall(vs_info))
+        if vs_conn_limit == '':
+            vs_conn_limit = '0'
+        vs[1] = vs_conn_limit
+
+        vs_ip_port_str_pattern = re.compile("\s*destination\s([\s\S]*?)\n", re.MULTILINE)
+        vs_ip_port_str = ''.join(vs_ip_port_str_pattern.findall(vs_info))
+
+        vs_ip_port_info = ''
+        if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[\s\S]*?$", vs_ip_port_str):
+            ipports = vs_ip_port_str.split(":")
+            ip = ipports[0]
+            port = ipports[1]
+            if port in ports_data.keys():
+                port = ports_data[port]
+            vs_ip_port_info = ip + ":" + port
+        else:
+            ipports = vs_ip_port_str.split(".")
+            ip = ipports[0]
+            port = ipports[1]
+            if port in ports_data.keys():
+                port = ports_data[port]
+            vs_ip_port_info = ip + "." + port
+        vs[2] = vs_ip_port_info
+
+        vs_status_pattern = re.compile("\s*(disabled)\n", re.MULTILINE)
+        vs_status = ''.join(vs_status_pattern.findall(vs_info))
+        if vs_status == '':
+            vs_status == 'enabled'
+        vs[3] = vs_status
+
+        vs_protocol_pattern = re.compile("\s*ip-protocol\s([\s\S]*?)\n", re.MULTILINE)
+        vs_protocol = ''.join(vs_protocol_pattern.findall(vs_info))
+        vs[4] = vs_protocol
+
+        vs_persist_str_pattern = re.compile("\s*persist\s(none|{[\s\S]*?})\n", re.MULTILINE)
+        vs_persist_str = ''.join(vs_persist_str_pattern.findall(vs_info))
+
+        vs_persist_name = 'none'
+        vs_persist_mothod = 'none'
+        vs_persist_timeout = ''
+        persist_cookie_encrypt = ''
+        persist_cookie_name = ''
+        persist_cookie_method = ''
+        if vs_persist_str != 'none' or vs_persist_str != '':
+            vs_persist_str_pattern = re.compile("{\s*([\s\S]*?)\s{\n", re.MULTILINE)
+            vs_persist_name = ''.join(vs_persist_str_pattern.findall(vs_persist_str))
+            if vs_persist_name in ltm_v12_source_persist_map.keys():
+                vs_persist_mothod = 'source_addr'
+                vs_persist_timeout = ltm_v12_source_persist_map[vs_persist_name]
+            elif vs_persist_name in ltm_v12_cookie_persist_map.keys():
+                vs_persist_mothod = 'session_cookie'
+                cookie_persist_str = ltm_v12_cookie_persist_map[vs_persist_name]
+                cookie_encrypt_pattern = re.compile("##encrypt#([\s\S]*?)##", re.MULTILINE)
+                persist_cookie_encrypt = ''.join(cookie_encrypt_pattern.findall(cookie_persist_str))
+                cookie_name_pattern = re.compile("##name#([\s\S]*?)##", re.MULTILINE)
+                persist_cookie_name = ''.join(cookie_name_pattern.findall(cookie_persist_str))
+                cookie_method_pattern = re.compile("##method#([\s\S]*?)##", re.MULTILINE)
+                persist_cookie_method = ''.join(cookie_method_pattern.findall(cookie_persist_str))
+
+        vs[5] = vs_persist_name
+        vs[6] = vs_persist_mothod
+        vs[7] = vs_persist_timeout
+        vs[8] = persist_cookie_encrypt
+        vs[9] = persist_cookie_name
+        vs[10] = persist_cookie_method
+
+        vs_pool_pattern = re.compile("[^{]\n\s*pool\s([\s\S]*?)\n", re.MULTILINE)
+        vs_pool = ''.join(vs_pool_pattern.findall(vs_info))
+
+        vs_pool_name = 'none'
+        vs_balanc_mode = ''
+        vs_pool_monitor = ''
+        members_info_simple = ''
+        members_info_detail = ''
+        if vs_pool != 'none' or vs_pool != '':
+            vs_pool_name = vs_pool
+            if vs_pool_name in ltm_v12_pool_map.keys():
+                vs_pool_info_str = ltm_v12_pool_map[vs_pool_name]
+                vs_balanc_mode_pattern = re.compile("##balanc_mode#([\s\S]*?)##", re.MULTILINE)
+                vs_balanc_mode = ''.join(vs_balanc_mode_pattern.findall(vs_pool_info_str))
+                vs_pool_monitor_pattern = re.compile("##monitor#([\s\S]*?)##", re.MULTILINE)
+                vs_pool_monitor = ''.join(vs_pool_monitor_pattern.findall(vs_pool_info_str))
+                vs_members_info_pattern = re.compile("##members_info#([\s\S]*?)##", re.MULTILINE)
+                vs_members_info = ''.join(vs_members_info_pattern.findall(vs_pool_info_str))
+                if vs_members_info != 'none' or vs_members_info != '':
+                    members_info_simple_pattern = re.compile("##members_info_simple#([\s\S]*?)##", re.MULTILINE)
+                    members_info_simple = ''.join(members_info_simple_pattern.findall(vs_pool_info_str))
+                    members_info_detail_pattern = re.compile("##members_info_detail#([\s\S]*?)##", re.MULTILINE)
+                    members_info_detail = ''.join(members_info_detail_pattern.findall(vs_pool_info_str))
+
+        vs[11] = vs_pool_name
+        vs[12] = vs_balanc_mode
+        vs[13] = vs_pool_monitor
+        vs[14] = members_info_simple.strip('\n')
+        vs[15] = members_info_detail.strip('\n')
+
+        vs_profiles_pattern = re.compile("\s*profiles\s{([\s\S]*?{\s}\n)\s*}\n", re.MULTILINE)
+        vs_profiles = ''.join(vs_profiles_pattern.findall(vs_info))
+
+        fastl4_profile_name = ''
+        fastl4_timeout = ''
+        fastl4_pva = ''
+        tcp_profile_name = ''
+        tcp_profile_timeout = ''
+        http_profile_name = ''
+        http_profile_xforwarded = ''
+        other_profile = ''
+        profiles_info_pattern = re.compile("\s*([\s\S]*?)\s{\s}\n", re.MULTILINE)
+        profiles_list = profiles_info_pattern.findall(vs_profiles)
+        for profile in profiles_list:
+            profile_name = profile.strip()
+            if profile_name in ltm_v12_fastl4_profile_map.keys():
+                fastl4_profile_name = profile_name
+                fastl4_info_str = ltm_v12_fastl4_profile_map[profile_name]
+                fastl4_timeout_pattern = re.compile("##timeout#([\s\S]*?)##", re.MULTILINE)
+                fastl4_timeout = ''.join(fastl4_timeout_pattern.findall(fastl4_info_str))
+                fastl4_pva_pattern = re.compile("##pva#([\s\S]*?)##", re.MULTILINE)
+                fastl4_pva = ''.join(fastl4_pva_pattern.findall(fastl4_info_str))
+            elif profile_name in ltm_v12_tcp_profile_map.keys():
+                tcp_profile_name = profile_name
+                tcp_profile_timeout = ltm_v12_tcp_profile_map[profile_name]
+            elif profile_name in ltm_v12_http_profile_map.keys():
+                http_profile_name = profile_name
+                http_profile_xforwarded = ltm_v12_http_profile_map[profile_name]
+            else:
+                other_profile = other_profile + '\n' + profile_name
+
+        vs[16] = fastl4_profile_name
+        vs[17] = fastl4_timeout
+        vs[18] = fastl4_pva
+        vs[19] = tcp_profile_name
+        vs[20] = tcp_profile_timeout
+        vs[21] = http_profile_name
+        vs[22] = http_profile_xforwarded
+        vs[23] = other_profile.strip('\n')
+
+        vs_rules_pattern = re.compile("\s*rules\s(none|{[\s\S]*?})\n", re.MULTILINE)
+        vs_rules = ''.join(vs_rules_pattern.findall(vs_info))
+        vs[24] = vs_rules
+
+        vs_snat_pool_str_pattern = re.compile("\s*source-address-translation\s(none|{[\s\S]*?})\n", re.MULTILINE)
+        vs_snat_pool_str = ''.join(vs_snat_pool_str_pattern.findall(vs_info))
+
+        vs_snat_pool_name = 'none'
+        if vs_snat_pool_str != 'none':
+            vs_snat_pool_pattern = re.compile("\s*pool\s([\s\S]*?)\n", re.MULTILINE)
+            vs_snat_pool_name = ''.join(vs_snat_pool_pattern.findall(vs_snat_pool_str))
+
+        vs[25] = vs_snat_pool_name
+        vs_source_port = item[10].strip()
+        vs[26] = vs_source_port
+        vs_vlans = item[11].strip()
+        vs[27] = vs_vlans
+        ltm_v12_vs_list.append(vs)
+
+    return ltm_v12_vs_list
+
 
 def main():
     get_device_list()
