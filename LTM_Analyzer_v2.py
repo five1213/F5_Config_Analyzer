@@ -19,13 +19,10 @@ device_path_map = {}
 
 device_list_path = ''
 config_path_os = ''
-result_path = ''
 if config_os == 'windows':
     config_path_os = config_path + '\\'
-    result_path = config_path_os + 'result\\'
 elif config_os == 'linux':
     config_path_os = config_path + '/'
-    result_path = config_path_os + 'result/'
 
 device_list_path = config_path_os + '设备列表.xlsx'
 
@@ -190,7 +187,7 @@ def get_ltm_config(filepath,type,version):
         monitor_pattern = re.compile("\s*monitor\s([\s\S]*?)\n", re.MULTILINE)
         monitor = ''.join(monitor_pattern.findall(pool_info))
 
-        members_str_pattern = re.compile("\s*members\s(none|{[\s\S]*?}\n\s*monitor)", re.MULTILINE)
+        members_str_pattern = re.compile("\s*members\s(none|{[\s\S]*?}\s*})", re.MULTILINE)
         members_str = ''.join(members_str_pattern.findall(pool_info))
 
         members_info = 'none'
@@ -273,6 +270,8 @@ def get_ltm_config(filepath,type,version):
             if port in ports_data.keys():
                 port = ports_data[port]
             vs_ip_port_info = ip + ":" + port
+        elif vs_ip_port_str == 'any:any':
+            vs_ip_port_info = '0.0.0.0:0'
         else:
             ipports = vs_ip_port_str.split(".")
             ip = ipports[0]
@@ -282,7 +281,7 @@ def get_ltm_config(filepath,type,version):
             vs_ip_port_info = ip + "." + port
         vs[2] = vs_ip_port_info
 
-        vs_status_pattern = re.compile("\s*(disabled)\n", re.MULTILINE)
+        vs_status_pattern = re.compile("\s*[^\d\w]\s(disabled)\n", re.MULTILINE)
         vs_status = ''.join(vs_status_pattern.findall(vs_info))
         if vs_status.strip() == '':
             vs_status = 'enabled'
@@ -290,13 +289,15 @@ def get_ltm_config(filepath,type,version):
 
         vs_protocol_pattern = re.compile("\s*ip-protocol\s([\s\S]*?)\n", re.MULTILINE)
         vs_protocol = ''.join(vs_protocol_pattern.findall(vs_info))
+        if vs_protocol == '':
+            vs_protocol = 'any'
         vs[4] = vs_protocol
 
         vs_persist_str_pattern = re.compile("\s*persist\s(none|{[\s\S]*?})\n", re.MULTILINE)
         vs_persist_str = ''.join(vs_persist_str_pattern.findall(vs_info))
 
-        vs_persist_name = 'none'
-        vs_persist_mothod = 'none'
+        vs_persist_name = ''
+        vs_persist_mothod = ''
         vs_persist_timeout = ''
         persist_cookie_encrypt = ''
         persist_cookie_name = ''
@@ -532,10 +533,10 @@ def get_nsae_ssl_config(filepath,type,version):
 def main():
     get_device_list()
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
-    ltm_writer = pd.ExcelWriter(result_path + 'ltm_'+now_time+'.xlsx')
-    nsae_writer = pd.ExcelWriter(result_path + 'nsae_'+now_time+'.xlsx')
-    citrix_writer = pd.ExcelWriter(result_path + 'citrix_'+now_time+'.xlsx')
-    gtm_writer = pd.ExcelWriter(result_path + 'gtm_'+now_time+'.xlsx')
+    ltm_writer = pd.ExcelWriter(config_path_os + 'ltm_'+now_time+'.xlsx')
+    nsae_writer = pd.ExcelWriter(config_path_os + 'nsae_'+now_time+'.xlsx')
+    citrix_writer = pd.ExcelWriter(config_path_os + 'citrix_'+now_time+'.xlsx')
+    # gtm_writer = pd.ExcelWriter(config_path_os + 'gtm_'+now_time+'.xlsx')
 
     for device_name in device_analyzer_list:
 
@@ -569,13 +570,13 @@ def main():
             gtm[2] = device_list_map[device_name]['version']
             gtm[3] = device_path_map[device_name]
             gtm_list.append(gtm)
-            gtm_df = pd.DataFrame(gtm_list, columns=['device_name', 'type', 'version', 'path'])
-            gtm_df.to_excel(gtm_writer, sheet_name=device_name, index=False)
+            # gtm_df = pd.DataFrame(gtm_list, columns=['device_name', 'type', 'version', 'path'])
+            # gtm_df.to_excel(gtm_writer, sheet_name=device_name, index=False)
 
     ltm_writer.close()
     nsae_writer.close()
     citrix_writer.close()
-    gtm_writer.close()
+    # gtm_writer.close()
 
 
 if __name__ == '__main__':
