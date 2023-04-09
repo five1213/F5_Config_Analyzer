@@ -51,6 +51,12 @@ NSAE_SLB_VIRTUAL_RE_STR = config.get('LTM', 'NSAE_SLB_VIRTUAL_RE_STR')
 NSAE_SLB_POLICY_RE_STR = config.get('LTM', 'NSAE_SLB_POLICY_RE_STR')
 NSAE_SSL_HOST_RE_STR = config.get('LTM', 'NSAE_SSL_HOST_RE_STR')
 
+CITRIX_POOl_MEM_RE_STR = config.get('LTM', 'CITRIX_POOl_MEM_RE_STR')
+CITRIX_POOl_RE_STR = config.get('LTM', 'CITRIX_POOl_RE_STR')
+CITRIX_VS_POLICY_RE_STR = config.get('LTM', 'CITRIX_VS_POLICY_RE_STR')
+CITRIX_VS_RE_STR = config.get('LTM', 'CITRIX_VS_RE_STR')
+CITRIX_POLICY_RE_STR = config.get('LTM', 'CITRIX_POLICY_RE_STR')
+
 ltm_v12_source_persist_pattern = re.compile(LTM_V12_SOURCE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_cookie_persist_pattern = re.compile(LTM_V12_COOKIE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_http_profile_pattern = re.compile(LTM_V12_HTTP_PROFILE_RE_STR, re.MULTILINE)
@@ -66,6 +72,12 @@ nsae_slb_group_member_pattern = re.compile(NSAE_SLB_GROUP_MEMBER_RE_STR, re.MULT
 nsae_slb_virtual_pattern = re.compile(NSAE_SLB_VIRTUAL_RE_STR, re.MULTILINE)
 nsae_slb_policy_pattern = re.compile(NSAE_SLB_POLICY_RE_STR, re.MULTILINE)
 nsae_ssl_host_pattern = re.compile(NSAE_SSL_HOST_RE_STR, re.MULTILINE)
+
+citrix_pool_mem_pattern = re.compile(CITRIX_POOl_MEM_RE_STR, re.MULTILINE)
+citrix_pool_pattern = re.compile(CITRIX_POOl_RE_STR, re.MULTILINE)
+citrix_vs_policy_pattern = re.compile(CITRIX_VS_POLICY_RE_STR, re.MULTILINE)
+citrix_vs_pattern = re.compile(CITRIX_VS_RE_STR, re.MULTILINE)
+citrix_policy_pattern = re.compile(CITRIX_POLICY_RE_STR, re.MULTILINE)
 
 def get_device_list():
     wb = load_workbook(device_list_path)  # 打开Excel
@@ -102,9 +114,9 @@ def get_device_list():
 
 
 
-def get_ltm_config(filepath,type,version):
+def get_ltm_config(file_path,type,version):
 
-    ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ltm_config_open = open(file_path, encoding='utf-8' ,errors='ignore')
     ltm_config_open_str = ltm_config_open.read()
     ltm_config_open.close()
 
@@ -416,9 +428,11 @@ def get_ltm_config(filepath,type,version):
 
     return ltm_v12_vs_list
 
-def get_nsae_ssl_config(filepath,type,version):
-    ssl_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+def get_nsae_ssl_config(file_path,type,version):
+    ssl_config_open = open(file_path, encoding='utf-8' ,errors='ignore')
     ssl_config_open_str = ssl_config_open.read()
+    ssl_config_open.close()
+
     nsae_slb_real_map = {}
     nsae_slb_real_list = nsae_slb_real_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_real_list:
@@ -527,15 +541,150 @@ def get_nsae_ssl_config(filepath,type,version):
         nsae_ssl_vs_info[5] = nsae_ssl_vs_member_detail
         nsae_ssl_vs_list.append(nsae_ssl_vs_info)
 
-    ssl_config_open.close()
+
     return nsae_ssl_vs_list
 
+def get_citrix_config(file_path, type, version):
+    citrix_config_open = open(file_path, encoding='utf-8' ,errors='ignore')
+    citrix_config_open_str = citrix_config_open.read()
+    citrix_config_open.close()
+
+    citrix_pool_mem_map = {}
+    citrix_pool_mems = citrix_pool_mem_pattern.findall(citrix_config_open_str)
+    for item in citrix_pool_mems:
+        pool_name = item[0].strip()
+        pool_name_mem = pool_name + '_mem'
+        pool_name_mon = pool_name + '_mon'
+        mem_str = item[1]
+        if re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}\s\d*$", mem_str):
+            ip_port_str = mem_str.replace(' ', ':')
+            if pool_name_mem in citrix_pool_mem_map.keys():
+                tmp = citrix_pool_mem_map[pool_name_mem]
+                citrix_pool_mem_map[pool_name_mem] = tmp + ip_port_str
+            else:
+                citrix_pool_mem_map[pool_name_mem] = ip_port_str
+            citrix_pool_mem_map[pool_name_mon] = ''
+        else:
+            if "monitorName" in mem_str:
+                mon_pattern = re.compile("monitorName\s([\s\S]*?)\n", re.MULTILINE)
+                mon = ''.join(mon_pattern.findall(mem_str))
+                citrix_pool_mem_map[pool_name_mon] = mon
+            else:
+                ip_port_str = mem_str.replace(' ', ':')
+                if pool_name_mem in citrix_pool_mem_map.keys():
+                    tmp = citrix_pool_mem_map[pool_name_mem]
+                    citrix_pool_mem_map[pool_name_mem] = tmp + ip_port_str
+                else:
+                    citrix_pool_mem_map[pool_name_mem] = ip_port_str
+
+                citrix_pool_mem_map[pool_name_mon] = ''
+
+    citrix_pool_map = {}
+    citrix_pools = citrix_pool_pattern.findall(citrix_config_open_str)
+    for item in citrix_pools:
+        pool_name = item[0].strip()
+        pool_protocol = item[1].strip()
+        pool_info_str = item[2].strip()
+        is_xff = " "
+        if "X-Forwarded-For" in pool_info_str:
+            is_xff = 'enabled'
+        pool_mems = citrix_pool_mem_map[pool_name + '_mem']
+        pool_mon = citrix_pool_mem_map[pool_name + '_mon']
+        pool_info = '##pool_name#' + pool_name +'##pool_protocol#' + pool_protocol + '##is_xff#'+ is_xff + '##pool_mems#' + pool_mems + '##pool_mon#' + pool_mon + "##"
+        citrix_pool_map[pool_name] = pool_info
+
+    citrix_policy_map = {}
+    citrix_policys = citrix_policy_pattern.findall(citrix_config_open_str)
+    for item1 in citrix_policys:
+        policy_name = item1[0].strip()
+        policy_info_str1 = item1[1].strip()
+        domain_name_pattern = re.compile('"([\s\S]*?)"', re.MULTILINE)
+        a = domain_name_pattern.findall(policy_info_str1)
+        domain_name = ''.join(domain_name_pattern.findall(policy_info_str1))
+        citrix_policy_map[policy_name] = '##domain_name#' + domain_name + '##'
+
+    citrix_vs_policy_map = {}
+    citrix_vs_policys = citrix_vs_policy_pattern.findall(citrix_config_open_str)
+    for item in citrix_vs_policys:
+        vs_name = item[0].strip()
+        policy_info_str = item[1].strip()
+        policy_name_pattern = re.compile("-policyName\s([\s\S]*?)\s", re.MULTILINE)
+        policy_name = ''.join(policy_name_pattern.findall(policy_info_str))
+        policy_info = ''
+        pool_info = ''
+        if policy_name == '':
+            pool_info = citrix_pool_map[policy_info_str]
+        else:
+            policy_info = citrix_policy_map[policy_name]
+
+        citrix_vs_policy_map[vs_name] = pool_info + policy_info
+
+    citrix_vs_list = []
+    citrix_vss = citrix_vs_pattern.findall(citrix_config_open_str)
+    for item in citrix_vss:
+        vs = [''] * 14
+        vs_name = item[0].strip()
+        vs[0] = vs_name
+        vs_protocol= item[1].strip()
+        vs[1] = vs_protocol
+        vs_ip = item[2].strip()
+        vs_port = item[3].strip()
+        vs[2] = vs_ip + ':' + vs_port
+        persist_type = item[4].strip()
+        vs[5] = persist_type
+        status_info_str = item[5].strip()
+
+        vs_status = 'enabled'
+        if re.match(r"-state\sDISABLED", status_info_str):
+            vs_status = 'disabled'
+        vs[3] = vs_status
+
+        vs_tcp_timeout_pattern = re.compile("-cltTimeout\s(\d*)", re.MULTILINE)
+        vs_tcp_timeout = ''.join(vs_tcp_timeout_pattern.findall(status_info_str))
+        vs[4] = vs_tcp_timeout
+
+        vs_persist_timeout_pattern = re.compile("-timeout\s(\d*)", re.MULTILINE)
+        vs_persist_timeout = ''.join(vs_persist_timeout_pattern.findall(status_info_str))
+        vs[6] = vs_persist_timeout
+
+        vs_snatpool = item[6].strip()
+        vs[12] = vs_snatpool
+
+        vs_policy_info_str = citrix_vs_policy_map[vs_name]
+
+        pool_name_pattern = re.compile("##pool_name#([\s\S]*?)##", re.MULTILINE)
+        pool_name = ''.join(pool_name_pattern.findall(vs_policy_info_str))
+        vs[7] = pool_name
+
+        pool_protocol_pattern = re.compile("##pool_protocol#([\s\S]*?)##", re.MULTILINE)
+        pool_protocol = ''.join(pool_protocol_pattern.findall(vs_policy_info_str))
+        vs[8] = pool_protocol
+
+        is_xff_pattern = re.compile("##is_xff#([\s\S]*?)##", re.MULTILINE)
+        is_xff = ''.join(is_xff_pattern.findall(vs_policy_info_str))
+        vs[11] = is_xff
+
+        pool_mems_pattern = re.compile("##pool_mems#([\s\S]*?)##", re.MULTILINE)
+        pool_mems = ''.join(pool_mems_pattern.findall(vs_policy_info_str))
+        vs[9] = pool_mems.strip('\n')
+
+        pool_mon_pattern = re.compile("##pool_mon#([\s\S]*?)##", re.MULTILINE)
+        pool_mon = ''.join(pool_mon_pattern.findall(vs_policy_info_str))
+        vs[10] = pool_mon
+
+        domain_name_pattern = re.compile("##domain_name#([\s\S]*?)##", re.MULTILINE)
+        domain_name = ''.join(domain_name_pattern.findall(vs_policy_info_str))
+        vs[13] = domain_name
+
+        citrix_vs_list.append(vs)
+
+    return citrix_vs_list
 def main():
     get_device_list()
     now_time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     ltm_writer = pd.ExcelWriter(config_path_os + 'ltm_'+now_time+'.xlsx')
     nsae_writer = pd.ExcelWriter(config_path_os + 'nsae_'+now_time+'.xlsx')
-    citrix_writer = pd.ExcelWriter(config_path_os + 'citrix_'+now_time+'.xlsx')
+    # citrix_writer = pd.ExcelWriter(config_path_os + 'citrix_'+now_time+'.xlsx')
     # gtm_writer = pd.ExcelWriter(config_path_os + 'gtm_'+now_time+'.xlsx')
 
     for device_name in device_analyzer_list:
@@ -546,36 +695,30 @@ def main():
         print(file_path)
         if type == 'ltm':
             ltm_list = get_ltm_config(file_path,type,version)
-            ltm_df = pd.DataFrame(ltm_list, columns=['vs_name', 'vs_conn', 'vs的ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
+            ltm_df = pd.DataFrame(ltm_list, columns=['vs_name', 'vs_conn', 'vs_ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
             ltm_df.to_excel(ltm_writer, sheet_name=device_name, index=False)
         elif type == 'nsae':
             nsae_ssl_vs_list = get_nsae_ssl_config(file_path, type, version)
             nsae_df = pd.DataFrame(nsae_ssl_vs_list, columns=['ssl_vs_ipport', 'ssl_host', 'ssl_vs_name', 'ssl_pool_name', 'members_info_simple', 'members_info_detail'])
             nsae_df.to_excel(nsae_writer, sheet_name=device_name, index=False)
-        elif type == 'citrix':
-            citrix_list = []
-            citrix = [''] * 4
-            citrix[0] = device_name
-            citrix[1] = type
-            citrix[2] = device_list_map[device_name]['version']
-            citrix[3] = device_path_map[device_name]
-            citrix_list.append(citrix)
-            citrix_df = pd.DataFrame(citrix_list, columns=['device_name', 'type', 'version', 'path'])
-            citrix_df.to_excel(citrix_writer, sheet_name=device_name, index=False)
-        elif type == 'gtm':
-            gtm_list = []
-            gtm = [''] * 4
-            gtm[0] = device_name
-            gtm[1] = type
-            gtm[2] = device_list_map[device_name]['version']
-            gtm[3] = device_path_map[device_name]
-            gtm_list.append(gtm)
+        # elif type == 'citrix':
+            # citrix_vs_list = get_citrix_config(file_path, type, version)
+            # citrix_df = pd.DataFrame(citrix_vs_list, columns=['vs_name', 'vs_protocol', 'vs_ip_port', 'vs_status', 'vs_tcp_timeout', 'persist_type', 'persist_time', 'pool_name', 'pool_protocol', 'pool_mems', 'pool_mon', 'is_xff', 'vs_snatpool', 'domain_name'])
+            # citrix_df.to_excel(citrix_writer, sheet_name=device_name, index=False)
+        # elif type == 'gtm':
+            # gtm_list = []
+            # gtm = [''] * 4
+            # gtm[0] = device_name
+            # gtm[1] = type
+            # gtm[2] = device_list_map[device_name]['version']
+            # gtm[3] = device_path_map[device_name]
+            # gtm_list.append(gtm)
             # gtm_df = pd.DataFrame(gtm_list, columns=['device_name', 'type', 'version', 'path'])
             # gtm_df.to_excel(gtm_writer, sheet_name=device_name, index=False)
 
     ltm_writer.close()
     nsae_writer.close()
-    citrix_writer.close()
+    # citrix_writer.close()
     # gtm_writer.close()
 
 
