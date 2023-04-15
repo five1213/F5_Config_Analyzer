@@ -147,13 +147,20 @@ def get_waf_pass_list():
                     device_name = nsae_vs_device_map[nsae_vs]
                     nsae_waf_vs_mem = nsae_real_map[waf_vs]
                     nsae_web_vs_mem = nsae_real_map[web_vs]
-                    waf_paas_script = sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_web_vs_mem + '"' + '\n' + device_name + ',' + 'slb real disable "' + nsae_waf_vs_mem + '"' + '\n'
+                    device_name_pattern = re.compile("[\s\S]*?(lb[\d]*|ssl[\d]*)", re.MULTILINE)
+                    pre_str = ''.join(device_name_pattern.findall(device_name))
+                    if re.match(r"^(ssl[\d])$", pre_str):
+                        pre_str = re.sub('ssl', 'ssl0', pre_str)
+                    if re.match(r"^(lb[\d])$", pre_str):
+                        pre_str = re.sub('lb', 'lb0', pre_str)
+
+                    waf_paas_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_web_vs_mem + '"' + ',' + 'slb real disable "' + nsae_waf_vs_mem + '"' + '\n'
                     if domain in waf_paas_map.keys():
                         waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_script
                     else:
                         waf_paas_map[domain] = waf_paas_script
 
-                    waf_over_script = sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_waf_vs_mem + '"' + '\n' + device_name + ',' + 'slb real disable "' + nsae_web_vs_mem + '"' + '\n'
+                    waf_over_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_waf_vs_mem + '"'  + ',' + 'slb real disable "' + nsae_web_vs_mem + '"' + '\n'
                     if domain in waf_over_map.keys():
                         waf_over_map[domain] = waf_over_map[domain] + waf_over_script
                     else:
@@ -162,6 +169,13 @@ def get_waf_pass_list():
             new_device_name = 'nh7402b0539-nint-lb11'
             if re.match(r"^(10.6.20.[\s\S]*?)$",ssl_vs) or re.match(r"^(2404:bc0:3:114[\s\S]*?)$",ssl_vs):
                 new_device_name = 'nh7402b0636-nint-lb21'
+
+            device_name_pattern = re.compile("[\s\S]*?(lb[\d]*|ssl[\d]*)", re.MULTILINE)
+            pre_str = ''.join(device_name_pattern.findall(new_device_name))
+            if re.match(r"^(ssl[\d])$", pre_str) :
+                pre_str = re.sub('ssl', 'ssl0', pre_str)
+            if re.match(r"^(lb[\d])$", pre_str) :
+                pre_str = re.sub('lb', 'lb0', pre_str)
 
             ssl_vs_info = f5_vs_info_map[ssl_vs]
             ssl_vs_name_pattern = re.compile("##vs_name#([\s\S]*?)##", re.MULTILINE)
@@ -195,13 +209,13 @@ def get_waf_pass_list():
             web_vs_snat_pool_name_pattern = re.compile("##vs_snat_pool_name#([\s\S]*?)##", re.MULTILINE)
             web_vs_snat_pool_name = ''.join(web_vs_snat_pool_name_pattern.findall(web_vs_info))
 
-            waf_paas_script = sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual ' + ssl_vs_name + 'persist repalce { ' + web_vs_persist_name + '}' + ' profile repalce { ' + web_vs_profile_name + ' }' + 'pool ' + web_vs_pool_name + 'snatpool ' + web_vs_snat_pool_name + '\n' + new_device_name + ',' + 'tmsh to device' + '\n'
+            waf_paas_script =  pre_str + '##'+sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual ' + ssl_vs_name + 'persist repalce { ' + web_vs_persist_name + '}' + ' profile repalce { ' + web_vs_profile_name + ' }' + 'pool ' + web_vs_pool_name + 'snatpool ' + web_vs_snat_pool_name + ',' + 'tmsh to device' + '\n'
             if domain in waf_paas_map.keys():
                 waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_script
             else:
                 waf_paas_map[domain] = waf_paas_script
 
-            waf_over_script = sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual '+ ssl_vs_name + 'persist repalce { ' +ssl_vs_persist_name+ '}' + ' profile repalce { ' +ssl_vs_profile_name+ ' }'+'pool '+ssl_vs_pool_name+ 'snatpool ' + ssl_vs_snat_pool_name +'\n' + new_device_name + ',' + 'tmsh to device' + '\n'
+            waf_over_script =  pre_str + '##'+ sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual '+ ssl_vs_name + 'persist repalce { ' +ssl_vs_persist_name+ '}' + ' profile repalce { ' +ssl_vs_profile_name+ ' }'+'pool '+ssl_vs_pool_name+ 'snatpool ' + ssl_vs_snat_pool_name + ',' + 'tmsh to device' + '\n'
             if domain in waf_over_map.keys():
                 waf_over_map[domain] = waf_over_map[domain] + waf_over_script
             else:
@@ -830,7 +844,7 @@ def main():
         file_path = device_path_map[device_name]
         type = device_list_map[device_name]['type']
         version = device_list_map[device_name]['version']
-        print(file_path)
+        # print(file_path)
         if type == 'ltm':
             ltm_list = get_ltm_config(file_path,type,version,device_name)
             ltm_df = pd.DataFrame(ltm_list, columns=['vs_name', 'vs_conn', 'vs_ip_port', 'vs_status', 'vs_protocol', 'vs_persist_name', 'vs_persist_mothod', 'vs_persist_timeout', 'persist_cookie_encrypt', 'persist_cookie_name', 'persist_cookie_method', 'vs_pool_name', 'vs_balanc_mode', 'vs_pool_monitor', 'members_info_simple', 'members_info_detail', 'fastl4_profile_name', 'fastl4_timeout', 'fastl4_pva', 'tcp_profile_name', 'tcp_profile_timeout', 'http_profile_name', 'http_profile_xforwarded', 'other_profile', 'vs_rules', 'vs_snat_pool_name', 'vs_source_port', 'vs_vlans'])
@@ -860,7 +874,10 @@ def main():
     # # gtm_writer.close()
 
     get_waf_pass_list()
-    print(waf_paas_map['job2.ccb.com'])
+    list = waf_paas_map['job2.ccb.com'].strip("\n").split("\n")
+    print(list)
+    list.sort()
+    print(list)
 
 if __name__ == '__main__':
     main()
