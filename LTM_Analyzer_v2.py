@@ -874,10 +874,84 @@ def main():
     # # gtm_writer.close()
 
     get_waf_pass_list()
-    list = waf_paas_map['job2.ccb.com'].strip("\n").split("\n")
-    print(list)
-    list.sort()
-    print(list)
+
+    ccvcc_waf_pass_writer = pd.ExcelWriter(config_path_os + '变更_网站旁路waf_'+now_time+'.xlsx')
+    ccvec_waf_pass_writer = pd.ExcelWriter(config_path_os + '变更_对公旁路waf_' + now_time + '.xlsx')
+    ccvep_waf_pass_writer = pd.ExcelWriter(config_path_os + '变更_对私旁路waf_'+now_time+'.xlsx')
+    ccvmb_waf_pass_writer = pd.ExcelWriter(config_path_os + '变更_手机旁路waf_'+now_time+'.xlsx')
+
+    for domain in waf_paas_map.keys():
+        list = waf_paas_map[domain].strip("\n").split("\n")
+        list.sort()
+        scripts_list = []
+        system_str = ''
+        for item in list:
+            scripts = item.split("##")
+            system_str = scripts[1]
+            device_name = scripts[2]
+            script_strs = scripts[3].split(",")
+            script1 = [device_name,script_strs[0]]
+            scripts_list.append(script1)
+            script2 = [device_name, script_strs[1]]
+            scripts_list.append(script2)
+
+        if '网站' in system_str:
+            ccvcc_waf_pass_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvcc_waf_pass_df.to_excel(ccvcc_waf_pass_writer, sheet_name=domain, index=False)
+        elif '对公' in system_str:
+            ccvec_waf_pass_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvec_waf_pass_df.to_excel(ccvec_waf_pass_writer, sheet_name=domain, index=False)
+        elif '对私' in system_str:
+            ccvep_waf_pass_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvep_waf_pass_df.to_excel(ccvep_waf_pass_writer, sheet_name=domain, index=False)
+        elif '手机' in system_str:
+            ccvmb_waf_pass_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvmb_waf_pass_df.to_excel(ccvmb_waf_pass_writer, sheet_name=domain, index=False)
+
+
+
+    ccvcc_waf_pass_writer.close()
+    ccvec_waf_pass_writer.close()
+    ccvep_waf_pass_writer.close()
+    ccvmb_waf_pass_writer.close()
+
+    ccvcc_waf_over_writer = pd.ExcelWriter(config_path_os + '回退_网站旁路waf_' + now_time + '.xlsx')
+    ccvec_waf_over_writer = pd.ExcelWriter(config_path_os + '回退_对公旁路waf_' + now_time + '.xlsx')
+    ccvep_waf_over_writer = pd.ExcelWriter(config_path_os + '回退_对私旁路waf_' + now_time + '.xlsx')
+    ccvmb_waf_over_writer = pd.ExcelWriter(config_path_os + '回退_手机旁路waf_' + now_time + '.xlsx')
+
+    for domain in waf_over_map.keys():
+        list = waf_over_map[domain].strip("\n").split("\n")
+        list.sort()
+        scripts_list = []
+        system_str = ''
+        for item in list:
+            scripts = item.split("##")
+            system_str = scripts[1]
+            device_name = scripts[2]
+            script_strs = scripts[3].split(",")
+            script1 = [device_name, script_strs[0]]
+            scripts_list.append(script1)
+            script2 = [device_name, script_strs[1]]
+            scripts_list.append(script2)
+
+        if '网站' in system_str:
+            ccvcc_waf_over_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvcc_waf_over_df.to_excel(ccvcc_waf_over_writer, sheet_name=domain, index=False)
+        elif '对公' in system_str:
+            ccvec_waf_over_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvec_waf_over_df.to_excel(ccvec_waf_over_writer, sheet_name=domain, index=False)
+        elif '对私' in system_str:
+            ccvep_waf_over_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvep_waf_over_df.to_excel(ccvep_waf_over_writer, sheet_name=domain, index=False)
+        elif '手机' in system_str:
+            ccvmb_waf_over_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
+            ccvmb_waf_over_df.to_excel(ccvmb_waf_over_writer, sheet_name=domain, index=False)
+
+    ccvcc_waf_over_writer.close()
+    ccvec_waf_over_writer.close()
+    ccvep_waf_over_writer.close()
+    ccvmb_waf_over_writer.close()
 
 if __name__ == '__main__':
     main()
