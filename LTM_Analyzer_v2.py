@@ -75,6 +75,9 @@ NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
 NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
 NSAE_HTTP_ACL_RE_STR = config.get('LTM', 'NSAE_HTTP_ACL_RE_STR')
 NSAE_SSH_ACL_RE_STR = config.get('LTM', 'NSAE_SSH_ACL_RE_STR')
+NSAE_NTP_RE_STR = config.get('LTM', 'NSAE_NTP_RE_STR')
+NSAE_SNMP_RE_STR = config.get('LTM', 'NSAE_SNMP_RE_STR')
+NSAE_SYSLOG_RE_STR = config.get('LTM', 'NSAE_SYSLOG_RE_STR')
 
 CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
 CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
@@ -120,6 +123,9 @@ nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
 nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
 nsae_http_acl_pattern = re.compile(NSAE_HTTP_ACL_RE_STR, re.MULTILINE)
 nsae_ssh_acl_pattern = re.compile(NSAE_SSH_ACL_RE_STR, re.MULTILINE)
+nsae_ntp_pattern = re.compile(NSAE_NTP_RE_STR, re.MULTILINE)
+nsae_snmp_pattern = re.compile(NSAE_SNMP_RE_STR, re.MULTILINE)
+nsae_syslog_pattern = re.compile(NSAE_SYSLOG_RE_STR, re.MULTILINE)
 
 citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
 citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
@@ -273,10 +279,12 @@ def get_waf_pass_list():
             else:
                 waf_over_map[domain] = waf_over_script
 
-def get_ltm_base_config(filepath,type,version):
-    ltm_config = {}
+def get_ltm_base_config(filepath,type,version,device_name):
+
     ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
     ltm_config_open_str = ltm_config_open.read()
+    ltm_config_open.close()
+
     routes = ''
     bus_routes = ''
     mgt_routes = ''
@@ -305,7 +313,7 @@ def get_ltm_base_config(filepath,type,version):
 
             ltm_v12_self_ip = ltm_v12_self_ip_pattern.findall(ltm_config_open_str)
             for item in ltm_v12_self_ip:
-                self_info = item[0].strip()
+                self_info = item
 
                 address_pattern = re.compile("\s*address\s([\s\S]*?)\n", re.MULTILINE)
                 address = ''.join(address_pattern.findall(self_info))
@@ -336,7 +344,7 @@ def get_ltm_base_config(filepath,type,version):
             ltm_v10_self_ip = ltm_v10_self_ip_pattern.findall(ltm_config_open_str)
             for item in ltm_v10_self_ip:
                 address = item[0].strip()
-                self_info = item[1].strip()
+                self_info = item[1]
 
                 floating_pattern = re.compile("\s*floating\s([\s\S]*?)\n", re.MULTILINE)
                 floating = ''.join(floating_pattern.findall(self_info))
@@ -373,7 +381,7 @@ def get_ltm_base_config(filepath,type,version):
         for item in ltm_snatpools:
             snatpool_name = item[0].strip()
             snat_address = item[1].strip()
-            snatpool = snatpool +'================\n'+ snatpool_name + ':\n' + snat_address + '\n'
+            snatpool = snatpool + snatpool_name + ':\n' + snat_address + '\n'
 
     elif type == 'nsae':
         nsae_ip = nsae_ip_pattern.findall(ltm_config_open_str)
@@ -408,15 +416,26 @@ def get_ltm_base_config(filepath,type,version):
 
         acls = 'https_acl:\n' + http_acls + 'ssh_acl:\n' + ssh_acls
 
+        nsae_ntp = nsae_ntp_pattern.findall(ltm_config_open_str)
+        for item in nsae_ntp:
+            ntp = ntp + item.strip() + '\n'
 
-    elif type == 'Citrix':
+        nsae_snmp = nsae_snmp_pattern.findall(ltm_config_open_str)
+        for item in nsae_snmp:
+            snmp = snmp + item.strip() + '\n'
+
+        nsae_syslog = nsae_syslog_pattern.findall(ltm_config_open_str)
+        for item in nsae_syslog:
+            syslog = syslog + item.strip() + '\n'
+
+
+    elif type == 'citrix':
         citrix_ip = citrix_ip_pattern.findall(ltm_config_open_str)
         for item in citrix_ip:
             vlan_id = item[0].strip()
             ip = item[1].strip()
             mask = item[2].strip()
             self_ips = self_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
-            float_ips = float_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
 
         citrix_route = citrix_route_pattern.findall(ltm_config_open_str)
         for item in citrix_route:
@@ -431,16 +450,17 @@ def get_ltm_base_config(filepath,type,version):
             acl_allow_dest = item[1].strip()
             acls = acls + 'src: ' + acl_allow_src + ' dest: ' + acl_allow_dest + '\n'
 
-    ltm_config['route'] = routes.rstrip('\n')
-    ltm_config['self_ip'] = self_ips.rstrip('\n')
-    ltm_config['float_ip'] = float_ips.rstrip('\n')
-    ltm_config['acls'] = acls.rstrip('\n')
-    ltm_config['ntp'] = ntp.rstrip('\n')
-    ltm_config['snmp'] = snmp.rstrip('\n')
-    ltm_config['syslog'] = syslog.rstrip('\n')
-    ltm_config['snatpool'] = snatpool.rstrip('\n')
-    ltm_config_open.close()
-    return ltm_config
+    ltm_base_config = ['']*8
+    ltm_base_config[0] = device_name
+    ltm_base_config[1] = routes.rstrip('\n')
+    ltm_base_config[2] = self_ips.rstrip('\n')
+    ltm_base_config[3] = acls.rstrip('\n')
+    ltm_base_config[4] = ntp.rstrip('\n')
+    ltm_base_config[5] = snmp.rstrip('\n')
+    ltm_base_config[6] = syslog.rstrip('\n')
+    ltm_base_config[7] = snatpool.rstrip('\n')
+
+    return ltm_base_config
 
 
 f5_vs_info_map = {}
@@ -1068,7 +1088,9 @@ def main():
     nsae_writer = pd.ExcelWriter(config_path_os + 'nsae_'+now_time+'.xlsx')
     citrix_writer = pd.ExcelWriter(config_path_os + 'citrix_'+now_time+'.xlsx')
     # gtm_writer = pd.ExcelWriter(config_path_os + 'gtm_'+now_time+'.xlsx')
+    device_base_writer = pd.ExcelWriter(config_path_os + 'device_base_' + now_time + '.xlsx')
 
+    device_base_list = []
     for device_name in device_analyzer_list:
         file_path = device_path_map[device_name]
         type = device_list_map[device_name]['type']
@@ -1097,10 +1119,19 @@ def main():
             # gtm_df = pd.DataFrame(gtm_list, columns=['device_name', 'type', 'version', 'path'])
             # gtm_df.to_excel(gtm_writer, sheet_name=device_name, index=False)
 
+        ltm_base_config = get_ltm_base_config(file_path,type,version,device_name)
+        device_base_list.append(ltm_base_config)
+
+    device_base_df = pd.DataFrame(device_base_list,
+                          columns=['device_name', 'routes', 'self_ips', 'acls', 'ntp', 'snmp',
+                                   'syslog', 'snatpool'])
+    device_base_df.to_excel(device_base_writer, sheet_name='device_base', index=False)
+
     ltm_writer.close()
     nsae_writer.close()
     citrix_writer.close()
     # # gtm_writer.close()
+    device_base_writer.close()
 
     get_waf_pass_list()
 
