@@ -59,6 +59,27 @@ CITRIX_VS_RE_STR = config.get('LTM', 'CITRIX_VS_RE_STR')
 CITRIX_POLICY_RE_STR = config.get('LTM', 'CITRIX_POLICY_RE_STR')
 CITRIX_SERVER_RE_STR = config.get('LTM', 'CITRIX_SERVER_RE_STR')
 
+LTM_V12_ROUTE_RE_STR = config.get('LTM', 'LTM_V12_ROUTE_RE_STR')
+LTM_V12_MGT_ROUTE_RE_STR = config.get('LTM', 'LTM_V12_MGT_ROUTE_RE_STR')
+LTM_V12_SELF_IP_RE_STR = config.get('LTM', 'LTM_V12_SELF_IP_RE_STR')
+LTM_V10_ROUTE_RE_STR = config.get('LTM', 'LTM_V10_ROUTE_RE_STR')
+LTM_V10_MGT_ROUTE_RE_STR = config.get('LTM', 'LTM_V10_MGT_ROUTE_RE_STR')
+LTM_V10_SELF_IP_RE_STR = config.get('LTM', 'LTM_V10_SELF_IP_RE_STR')
+LTM_HTTP_ACL_RE_STR = config.get('LTM', 'LTM_HTTP_ACL_RE_STR')
+LTM_SSH_ACL_RE_STR = config.get('LTM', 'LTM_SSH_ACL_RE_STR')
+LTM_NTP_RE_STR = config.get('LTM', 'LTM_NTP_RE_STR')
+LTM_SNMP_RE_STR = config.get('LTM', 'LTM_SNMP_RE_STR')
+LTM_SYSLOG_RE_STR = config.get('LTM', 'LTM_SYSLOG_RE_STR')
+LTM_SNATPOOL_RE_STR = config.get('LTM', 'LTM_SNATPOOL_RE_STR')
+NSAE_IP_RE_STR = config.get('LTM', 'NSAE_IP_RE_STR')
+NSAE_ROUTE_RE_STR = config.get('LTM', 'NSAE_ROUTE_RE_STR')
+NSAE_HTTP_ACL_RE_STR = config.get('LTM', 'NSAE_HTTP_ACL_RE_STR')
+NSAE_SSH_ACL_RE_STR = config.get('LTM', 'NSAE_SSH_ACL_RE_STR')
+
+CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
+CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
+CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
+
 ltm_v12_source_persist_pattern = re.compile(LTM_V12_SOURCE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_cookie_persist_pattern = re.compile(LTM_V12_COOKIE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_http_profile_pattern = re.compile(LTM_V12_HTTP_PROFILE_RE_STR, re.MULTILINE)
@@ -81,6 +102,28 @@ citrix_vs_policy_pattern = re.compile(CITRIX_VS_POLICY_RE_STR, re.MULTILINE)
 citrix_vs_pattern = re.compile(CITRIX_VS_RE_STR, re.MULTILINE)
 citrix_policy_pattern = re.compile(CITRIX_POLICY_RE_STR, re.MULTILINE)
 citrix_server_pattern = re.compile(CITRIX_SERVER_RE_STR, re.MULTILINE)
+
+
+ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
+ltm_v12_mgt_route_pattern = re.compile(LTM_V12_MGT_ROUTE_RE_STR, re.MULTILINE)
+ltm_v12_self_ip_pattern = re.compile(LTM_V12_SELF_IP_RE_STR, re.MULTILINE)
+ltm_v10_route_pattern = re.compile(LTM_V10_ROUTE_RE_STR, re.MULTILINE)
+ltm_v10_mgt_route_pattern = re.compile(LTM_V10_MGT_ROUTE_RE_STR, re.MULTILINE)
+ltm_v10_self_ip_pattern = re.compile(LTM_V10_SELF_IP_RE_STR, re.MULTILINE)
+ltm_http_acl_pattern = re.compile(LTM_HTTP_ACL_RE_STR, re.MULTILINE)
+ltm_ssh_acl_pattern = re.compile(LTM_SSH_ACL_RE_STR, re.MULTILINE)
+ltm_ntp_pattern = re.compile(LTM_NTP_RE_STR, re.MULTILINE)
+ltm_snmp_pattern = re.compile(LTM_SNMP_RE_STR, re.MULTILINE)
+ltm_syslog_pattern = re.compile(LTM_SYSLOG_RE_STR, re.MULTILINE)
+ltm_snatpool_pattern = re.compile(LTM_SNATPOOL_RE_STR, re.MULTILINE)
+nsae_ip_pattern = re.compile(NSAE_IP_RE_STR, re.MULTILINE)
+nsae_route_pattern = re.compile(NSAE_ROUTE_RE_STR, re.MULTILINE)
+nsae_http_acl_pattern = re.compile(NSAE_HTTP_ACL_RE_STR, re.MULTILINE)
+nsae_ssh_acl_pattern = re.compile(NSAE_SSH_ACL_RE_STR, re.MULTILINE)
+
+citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
+citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
+citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
 
 def get_device_list():
     wb = load_workbook(device_list_path)  # 打开Excel
@@ -116,6 +159,7 @@ def get_device_list():
                         device_path_map[devicename] = new_file_path + '/' + device
 waf_paas_map = {}
 waf_over_map = {}
+ssl_update_map = {}
 def get_waf_pass_list():
     wb = load_workbook(waf_pass_path)  # 打开Excel
     sheet1 = wb['waf']
@@ -165,6 +209,14 @@ def get_waf_pass_list():
                         waf_over_map[domain] = waf_over_map[domain] + waf_over_script
                     else:
                         waf_over_map[domain] = waf_over_script
+
+                    ssl_host_info = nsae_vs_sslhost_map[nsae_vs]
+                    ssl_update_script = pre_str + '##'+ sys_name + '##' + ssl_host_info + '\n'
+                    if domain in ssl_update_map.keys():
+                        ssl_update_map[domain] = ssl_update_map[domain] + ssl_update_script
+                    else:
+                        ssl_update_map[domain] = ssl_update_script
+
         else:
             new_device_name = 'nh7402b0539-nint-lb11'
             if re.match(r"^(10.6.20.[\s\S]*?)$",ssl_vs) or re.match(r"^(2404:bc0:3:114[\s\S]*?)$",ssl_vs):
@@ -220,6 +272,176 @@ def get_waf_pass_list():
                 waf_over_map[domain] = waf_over_map[domain] + waf_over_script
             else:
                 waf_over_map[domain] = waf_over_script
+
+def get_ltm_base_config(filepath,type,version):
+    ltm_config = {}
+    ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
+    ltm_config_open_str = ltm_config_open.read()
+    routes = ''
+    bus_routes = ''
+    mgt_routes = ''
+    self_ips = ''
+    acls = ''
+    ntp = ''
+    snmp = ''
+    syslog = ''
+    snatpool = ''
+
+    if type == 'ltm':
+        if version == 'v11' :
+            ltm_v12_route = ltm_v12_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v12_route:
+                network = item[1].strip()
+                gw = item[0].strip()
+                bus_routes = bus_routes + network + ' gw ' + gw + '\n'
+
+            ltm_v12_mgt_route = ltm_v12_mgt_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v12_mgt_route:
+                network = item[1].strip()
+                gateway = item[0].strip()
+                mgt_routes = mgt_routes + network + ' gateway ' + gateway + '\n'
+
+            routes = 'bus_routes:\n' + bus_routes + 'mgt_routes:\n' + mgt_routes.strip('\n')
+
+            ltm_v12_self_ip = ltm_v12_self_ip_pattern.findall(ltm_config_open_str)
+            for item in ltm_v12_self_ip:
+                self_info = item[0].strip()
+
+                address_pattern = re.compile("\s*address\s([\s\S]*?)\n", re.MULTILINE)
+                address = ''.join(address_pattern.findall(self_info))
+
+                traffic_group_pattern = re.compile("\s*traffic-group\s([\s\S]*?)\n", re.MULTILINE)
+                traffic_group = ''.join(traffic_group_pattern.findall(self_info))
+
+                vlan_pattern = re.compile("\s*vlan\s([\s\S]*?)\n", re.MULTILINE)
+                vlan = ''.join(vlan_pattern.findall(self_info))
+
+                self_ips = self_ips + address + ' ' +traffic_group + ' ' + vlan + '\n'
+
+        elif version == 'v10':
+            ltm_v10_route = ltm_v10_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v10_route:
+                network = item[0].strip()
+                gw = item[1].strip()
+                bus_routes = bus_routes + network + ' gw ' + gw + '\n'
+
+            ltm_v10_mgt_route = ltm_v10_mgt_route_pattern.findall(ltm_config_open_str)
+            for item in ltm_v10_mgt_route:
+                network = item[0].strip()
+                gateway = item[1].strip()
+                mgt_routes = mgt_routes + network + ' gateway ' + gateway + '\n'
+
+            routes = 'bus_routes:\n' + bus_routes + 'mgt_routes:\n' + mgt_routes.strip('\n')
+
+            ltm_v10_self_ip = ltm_v10_self_ip_pattern.findall(ltm_config_open_str)
+            for item in ltm_v10_self_ip:
+                address = item[0].strip()
+                self_info = item[1].strip()
+
+                floating_pattern = re.compile("\s*floating\s([\s\S]*?)\n", re.MULTILINE)
+                floating = ''.join(floating_pattern.findall(self_info))
+                if floating == '':
+                    floating = 'self'
+                else:
+                    floating = 'floating'
+
+                vlan_pattern = re.compile("\s*vlan\s([\s\S]*?)\n", re.MULTILINE)
+                vlan = ''.join(vlan_pattern.findall(self_info))
+
+                self_ips = self_ips + address + ' ' + floating + ' ' + vlan + '\n'
+
+
+        ltm_http_acl = ltm_http_acl_pattern.findall(ltm_config_open_str)
+        https_acls = ltm_http_acl[0].strip().replace(' ','\n')
+
+        ltm_ssh_acl = ltm_ssh_acl_pattern.findall(ltm_config_open_str)
+        ssh_acls = ltm_ssh_acl[0].strip().replace(' ','\n')
+
+        acls = 'https_acl:\n' + https_acls + '\nssh_acl:\n' + ssh_acls
+
+        ltm_ntp = ltm_ntp_pattern.findall(ltm_config_open_str)
+        ntp = ltm_ntp[0].strip().replace(' ','\n')
+
+        ltm_snmp = ltm_snmp_pattern.findall(ltm_config_open_str)
+        snmp = ltm_snmp[0].strip().replace(' ','\n')
+
+        ltm_syslog = ltm_syslog_pattern.findall(ltm_config_open_str)
+        syslogs = ltm_syslog[0].strip().split(';')
+        syslog = '\n'.join(syslogs)
+
+        ltm_snatpools = ltm_snatpool_pattern.findall(ltm_config_open_str)
+        for item in ltm_snatpools:
+            snatpool_name = item[0].strip()
+            snat_address = item[1].strip()
+            snatpool = snatpool +'================\n'+ snatpool_name + ':\n' + snat_address + '\n'
+
+    elif type == 'nsae':
+        nsae_ip = nsae_ip_pattern.findall(ltm_config_open_str)
+        for item in nsae_ip:
+            interface = item[0].strip().replace('"','')
+            ip = item[1].strip()
+            mask = item[2].strip()
+            self_ips = self_ips + ip + '/' + mask + ' ' + interface + '\n'
+
+        nsae_route = nsae_route_pattern.findall(ltm_config_open_str)
+        for item in nsae_route:
+            type = item[0].strip()
+            route = item[1].strip()
+            if type == 'default':
+                routes = routes + 'default' + ' gw ' + route + '\n'
+            elif type == 'static':
+                patterns = r' +'
+                network = re.split(patterns,route)
+                routes = routes + network[0] + '/' + network[1] + ' gw ' + network[2] + '\n'
+
+        nsae_http_acl = nsae_http_acl_pattern.findall(ltm_config_open_str)
+        http_acls = ''
+        for item in nsae_http_acl:
+            acl_temp = item.strip().replace(' ','/')
+            http_acls = http_acls + acl_temp + '\n'
+
+        nsae_ssh_acl = nsae_ssh_acl_pattern.findall(ltm_config_open_str)
+        ssh_acls = ''
+        for item in nsae_ssh_acl:
+            acl_temp = item.strip().replace(' ','/')
+            ssh_acls = ssh_acls + acl_temp + '\n'
+
+        acls = 'https_acl:\n' + http_acls + 'ssh_acl:\n' + ssh_acls
+
+
+    elif type == 'Citrix':
+        citrix_ip = citrix_ip_pattern.findall(ltm_config_open_str)
+        for item in citrix_ip:
+            vlan_id = item[0].strip()
+            ip = item[1].strip()
+            mask = item[2].strip()
+            self_ips = self_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
+            float_ips = float_ips + ip + '/' + mask + ' vlan ' + vlan_id + '\n'
+
+        citrix_route = citrix_route_pattern.findall(ltm_config_open_str)
+        for item in citrix_route:
+            network = item[0].strip()
+            mask = item[1].strip()
+            gw = item[2].strip()
+            routes = routes + network + '/' + mask + ' gw ' + gw + '\n'
+
+        citrix_acl = citrix_acl_pattern.findall(ltm_config_open_str)
+        for item in citrix_acl:
+            acl_allow_src = item[0].strip()
+            acl_allow_dest = item[1].strip()
+            acls = acls + 'src: ' + acl_allow_src + ' dest: ' + acl_allow_dest + '\n'
+
+    ltm_config['route'] = routes.rstrip('\n')
+    ltm_config['self_ip'] = self_ips.rstrip('\n')
+    ltm_config['float_ip'] = float_ips.rstrip('\n')
+    ltm_config['acls'] = acls.rstrip('\n')
+    ltm_config['ntp'] = ntp.rstrip('\n')
+    ltm_config['snmp'] = snmp.rstrip('\n')
+    ltm_config['syslog'] = syslog.rstrip('\n')
+    ltm_config['snatpool'] = snatpool.rstrip('\n')
+    ltm_config_open.close()
+    return ltm_config
+
 
 f5_vs_info_map = {}
 def get_ltm_config(file_path,type,version,device_name):
@@ -553,6 +775,7 @@ def get_ltm_config(file_path,type,version,device_name):
 
 nsae_real_map = {}
 nsae_vs_device_map = {}
+nsae_vs_sslhost_map = {}
 def get_nsae_ssl_config(file_path,type,version,device_name):
     ssl_config_open = open(file_path, encoding='utf-8' ,errors='ignore')
     ssl_config_open_str = ssl_config_open.read()
@@ -589,19 +812,6 @@ def get_nsae_ssl_config(file_path,type,version,device_name):
 
         nsae_slb_group_member_map[nsae_slb_pool_name] = nsae_slb_pool_info
 
-    nsae_slb_virtual_map = {}
-    nsae_slb_virtual_list = nsae_slb_virtual_pattern.findall(ssl_config_open_str)
-    for item in nsae_slb_virtual_list:
-        nsae_slb_vs_name = re.sub('\s*','',item[0])
-        nsae_slb_vs_ip = re.sub('\s*','',item[1])
-        nsae_slb_vs_port = re.sub('\s*','',item[2])
-        nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
-        nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
-        vs_ip_port_str = nsae_slb_vs_ip.strip() + ':' + nsae_slb_vs_port.strip()
-        if not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[\s\S]*?$", vs_ip_port_str):
-            vs_ip_port_str = re.sub(':0{1,}', ':', vs_ip_port_str.lower())
-        nsae_vs_device_map[vs_ip_port_str] = device_name
-
     nsae_slb_policy_map = {}
     nsae_slb_policy_list = nsae_slb_policy_pattern.findall(ssl_config_open_str)
     for item in nsae_slb_policy_list:
@@ -615,6 +825,25 @@ def get_nsae_ssl_config(file_path,type,version,device_name):
         nsae_ssl_host_name = re.sub('\s*','',item[0])
         nsae_slb_vs_name = re.sub('\s*','',item[1])
         nsae_ssl_host_map[nsae_slb_vs_name] = nsae_ssl_host_name
+
+    nsae_slb_virtual_map = {}
+    nsae_slb_virtual_list = nsae_slb_virtual_pattern.findall(ssl_config_open_str)
+    for item in nsae_slb_virtual_list:
+        nsae_slb_vs_name = re.sub('\s*','',item[0])
+        nsae_slb_vs_ip = re.sub('\s*','',item[1])
+        nsae_slb_vs_port = re.sub('\s*','',item[2])
+        nsae_slb_vs_info = nsae_slb_vs_ip + ':' + nsae_slb_vs_port
+        nsae_slb_virtual_map[nsae_slb_vs_name] = nsae_slb_vs_info
+        nsae_slb_ssl_host = ''
+        if nsae_slb_vs_name in nsae_ssl_host_map.keys():
+            nsae_slb_ssl_host = nsae_ssl_host_map[nsae_slb_vs_name]
+
+        vs_ip_port_str = nsae_slb_vs_ip.strip() + ':' + nsae_slb_vs_port.strip()
+        if not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[\s\S]*?$", vs_ip_port_str):
+            vs_ip_port_str = re.sub(':0{1,}', ':', vs_ip_port_str.lower())
+
+        nsae_vs_device_map[vs_ip_port_str] = device_name
+        nsae_vs_sslhost_map[vs_ip_port_str] = device_name + ',' + nsae_slb_ssl_host + ',' + nsae_slb_vs_name
 
     nsae_ssl_vs_list = []
     for vs_name in nsae_slb_virtual_map.keys():
@@ -952,6 +1181,67 @@ def main():
     ccvec_waf_over_writer.close()
     ccvep_waf_over_writer.close()
     ccvmb_waf_over_writer.close()
+
+    ccvcc_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_网站_' + now_time + '.xlsx')
+    ccvec_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_对公_' + now_time + '.xlsx')
+    ccvep_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_对私_' + now_time + '.xlsx')
+    ccvmb_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_手机_' + now_time + '.xlsx')
+
+    for domain in ssl_update_map.keys():
+        list = ssl_update_map[domain].strip("\n").split("\n")
+        list.sort()
+        scripts_list = []
+        bak_scripts_list = []
+        restore_scripts_list = []
+        system_str = ''
+        for item in list:
+            scripts = item.split("##")
+            system_str = scripts[1]
+            script_strs = scripts[2].split(",")
+            script1 = [domain, script_strs[0], script_strs[1], script_strs[2]]
+            scripts_list.append(script1)
+            bak_script = 'ssl bak ' + script_strs[1] + ' "aaa" ' + '"bbb" '
+            bak_scripts = [script_strs[0], bak_script]
+            bak_scripts_list.append(bak_scripts)
+
+            restore_script = 'ssl restore ' + script_strs[1] + ' "aaa" ' + '"bbb" '
+            restore_scripts = [script_strs[0], restore_script]
+            restore_scripts_list.append(restore_scripts)
+
+        if '网站' in system_str:
+            ccvcc_sslupdate_df = pd.DataFrame(scripts_list, columns=['domain', 'device_name','ssl_host','vs_name'])
+            ccvcc_sslupdate_df.to_excel(ccvcc_sslupdate_writer, sheet_name=domain, index=False)
+            ccvcc_bak_df = pd.DataFrame(bak_scripts_list, columns=['device_name','bak_scripts'])
+            ccvcc_bak_df.to_excel(ccvcc_sslupdate_writer, sheet_name=domain+'_bak', index=False)
+            ccvcc_restore_df = pd.DataFrame(restore_scripts_list, columns=['device_name','restore_scripts'])
+            ccvcc_restore_df.to_excel(ccvcc_sslupdate_writer, sheet_name=domain+'_restore', index=False)
+        elif '对公' in system_str:
+            ccvec_sslupdate_df = pd.DataFrame(scripts_list, columns=['domain', 'device_name','ssl_host','vs_name'])
+            ccvec_sslupdate_df.to_excel(ccvec_sslupdate_writer, sheet_name=domain, index=False)
+            ccvec_bak_df = pd.DataFrame(bak_scripts_list, columns=['device_name','bak_scripts'])
+            ccvec_bak_df.to_excel(ccvec_sslupdate_writer, sheet_name=domain+'_bak', index=False)
+            ccvec_restore_df = pd.DataFrame(restore_scripts_list, columns=['device_name','restore_scripts'])
+            ccvec_restore_df.to_excel(ccvec_sslupdate_writer, sheet_name=domain+'_restore', index=False)
+        elif '对私' in system_str:
+            ccvep_sslupdate_df = pd.DataFrame(scripts_list, columns=['domain', 'device_name','ssl_host','vs_name'])
+            ccvep_sslupdate_df.to_excel(ccvep_sslupdate_writer, sheet_name=domain, index=False)
+            ccvep_bak_df = pd.DataFrame(bak_scripts_list, columns=['device_name','bak_scripts'])
+            ccvep_bak_df.to_excel(ccvep_sslupdate_writer, sheet_name=domain+'_bak', index=False)
+            ccvep_restore_df = pd.DataFrame(restore_scripts_list, columns=['device_name','restore_scripts'])
+            ccvep_restore_df.to_excel(ccvep_sslupdate_writer, sheet_name=domain+'_restore', index=False)
+        elif '手机' in system_str:
+            ccvmb_sslupdate_df = pd.DataFrame(scripts_list, columns=['domain', 'device_name','ssl_host','vs_name'])
+            ccvmb_sslupdate_df.to_excel(ccvmb_sslupdate_writer, sheet_name=domain, index=False)
+            ccvmb_bak_df = pd.DataFrame(bak_scripts_list, columns=['device_name','bak_scripts'])
+            ccvmb_bak_df.to_excel(ccvmb_sslupdate_writer, sheet_name=domain+'_bak', index=False)
+            ccvmb_restore_df = pd.DataFrame(restore_scripts_list, columns=['device_name','restore_scripts'])
+            ccvmb_restore_df.to_excel(ccvmb_sslupdate_writer, sheet_name=domain+'_restore', index=False)
+
+    ccvcc_sslupdate_writer.close()
+    ccvec_sslupdate_writer.close()
+    ccvep_sslupdate_writer.close()
+    ccvmb_sslupdate_writer.close()
+
 
 if __name__ == '__main__':
     main()
