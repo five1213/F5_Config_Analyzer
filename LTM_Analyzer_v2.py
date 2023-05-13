@@ -78,10 +78,14 @@ NSAE_SSH_ACL_RE_STR = config.get('LTM', 'NSAE_SSH_ACL_RE_STR')
 NSAE_NTP_RE_STR = config.get('LTM', 'NSAE_NTP_RE_STR')
 NSAE_SNMP_RE_STR = config.get('LTM', 'NSAE_SNMP_RE_STR')
 NSAE_SYSLOG_RE_STR = config.get('LTM', 'NSAE_SYSLOG_RE_STR')
-
+NSAE_SNATPOOL_RE_STR = config.get('LTM', 'NSAE_SNATPOOL_RE_STR')
 CITRIX_IP_RE_STR = config.get('LTM', 'CITRIX_IP_RE_STR')
 CITRIX_ROUTE_RE_STR = config.get('LTM', 'CITRIX_ROUTE_RE_STR')
 CITRIX_ACL_RE_STR = config.get('LTM', 'CITRIX_ACL_RE_STR')
+CITRIX_SNMP_RE_STR = config.get('LTM', 'CITRIX_SNMP_RE_STR')
+CITRIX_SYSLOG_RE_STR = config.get('LTM', 'CITRIX_SYSLOG_RE_STR')
+CITRIX_IPSET_RE_STR = config.get('LTM', 'CITRIX_IPSET_RE_STR')
+CITRIX_SNATPOOL_RE_STR = config.get('LTM', 'CITRIX_SNATPOOL_RE_STR')
 
 ltm_v12_source_persist_pattern = re.compile(LTM_V12_SOURCE_PERSIST_RE_STR, re.MULTILINE)
 ltm_v12_cookie_persist_pattern = re.compile(LTM_V12_COOKIE_PERSIST_RE_STR, re.MULTILINE)
@@ -106,7 +110,6 @@ citrix_vs_pattern = re.compile(CITRIX_VS_RE_STR, re.MULTILINE)
 citrix_policy_pattern = re.compile(CITRIX_POLICY_RE_STR, re.MULTILINE)
 citrix_server_pattern = re.compile(CITRIX_SERVER_RE_STR, re.MULTILINE)
 
-
 ltm_v12_route_pattern = re.compile(LTM_V12_ROUTE_RE_STR, re.MULTILINE)
 ltm_v12_mgt_route_pattern = re.compile(LTM_V12_MGT_ROUTE_RE_STR, re.MULTILINE)
 ltm_v12_self_ip_pattern = re.compile(LTM_V12_SELF_IP_RE_STR, re.MULTILINE)
@@ -126,10 +129,14 @@ nsae_ssh_acl_pattern = re.compile(NSAE_SSH_ACL_RE_STR, re.MULTILINE)
 nsae_ntp_pattern = re.compile(NSAE_NTP_RE_STR, re.MULTILINE)
 nsae_snmp_pattern = re.compile(NSAE_SNMP_RE_STR, re.MULTILINE)
 nsae_syslog_pattern = re.compile(NSAE_SYSLOG_RE_STR, re.MULTILINE)
-
+nsae_snatpool_pattern = re.compile(NSAE_SNATPOOL_RE_STR, re.MULTILINE)
 citrix_ip_pattern = re.compile(CITRIX_IP_RE_STR, re.MULTILINE)
 citrix_route_pattern = re.compile(CITRIX_ROUTE_RE_STR, re.MULTILINE)
 citrix_acl_pattern = re.compile(CITRIX_ACL_RE_STR, re.MULTILINE)
+citrix_snmp_pattern = re.compile(CITRIX_SNMP_RE_STR, re.MULTILINE)
+citrix_syslog_pattern = re.compile(CITRIX_SYSLOG_RE_STR, re.MULTILINE)
+citrix_ipset_pattern = re.compile(CITRIX_IPSET_RE_STR, re.MULTILINE)
+citrix_snatpool_pattern = re.compile(CITRIX_SNATPOOL_RE_STR, re.MULTILINE)
 
 def get_device_list():
     wb = load_workbook(device_list_path)  # 打开Excel
@@ -166,11 +173,17 @@ def get_device_list():
 waf_paas_map = {}
 waf_over_map = {}
 ssl_update_map = {}
+scripts_paas_map = {}
+scripts_over_map = {}
 def get_waf_pass_list():
     wb = load_workbook(waf_pass_path)  # 打开Excel
     sheet1 = wb['waf']
     for row in range(2, sheet1.max_row + 1):
         sys_name = sheet1.cell(row, 1).value.strip()
+        new_sys_name = sys_name
+        if 'v4' in sys_name or 'V4' in sys_name:
+            new_sys_name = sys_name.replace('4','6')
+
         domain = sheet1.cell(row, 2).value.strip()
 
         ssl_vs = sheet1.cell(row, 3).value.strip()
@@ -195,8 +208,8 @@ def get_waf_pass_list():
 
                 if nsae_vs in nsae_vs_device_map.keys():
                     device_name = nsae_vs_device_map[nsae_vs]
-                    nsae_waf_vs_mem = nsae_real_map[waf_vs]
-                    nsae_web_vs_mem = nsae_real_map[web_vs]
+                    nsae_waf_vs_mem = nsae_real_map[device_name + '_' + waf_vs]
+                    nsae_web_vs_mem = nsae_real_map[device_name + '_' + web_vs]
                     device_name_pattern = re.compile("[\s\S]*?(lb[\d]*|ssl[\d]*)", re.MULTILINE)
                     pre_str = ''.join(device_name_pattern.findall(device_name))
                     if re.match(r"^(ssl[\d])$", pre_str):
@@ -204,17 +217,41 @@ def get_waf_pass_list():
                     if re.match(r"^(lb[\d])$", pre_str):
                         pre_str = re.sub('lb', 'lb0', pre_str)
 
-                    waf_paas_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_web_vs_mem + '"' + ',' + 'slb real disable "' + nsae_waf_vs_mem + '"' + '\n'
-                    if domain in waf_paas_map.keys():
-                        waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_script
-                    else:
-                        waf_paas_map[domain] = waf_paas_script
+                    waf_paas_enable_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + '0' + '##' + 'slb real enable "' + nsae_web_vs_mem + '"' +'\n'
+                    pass_enable_key = domain+'_' + waf_paas_enable_script
+                    if pass_enable_key not in scripts_paas_map.keys():
+                        scripts_paas_map[pass_enable_key] = ''
+                        if domain in waf_paas_map.keys():
+                            waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_enable_script
+                        else:
+                            waf_paas_map[domain] = waf_paas_enable_script
 
-                    waf_over_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + 'slb real enable "' + nsae_waf_vs_mem + '"'  + ',' + 'slb real disable "' + nsae_web_vs_mem + '"' + '\n'
-                    if domain in waf_over_map.keys():
-                        waf_over_map[domain] = waf_over_map[domain] + waf_over_script
-                    else:
-                        waf_over_map[domain] = waf_over_script
+                    waf_paas_disable_script = pre_str + '##' + sys_name + '##' + device_name + '##' + '1' + '##' + 'slb real disable "' + nsae_waf_vs_mem + '"' + '\n'
+                    pass_disable_key = domain + '_' + waf_paas_disable_script
+                    if pass_disable_key not in scripts_paas_map.keys():
+                        scripts_paas_map[pass_disable_key] = ''
+                        if domain in waf_paas_map.keys():
+                            waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_disable_script
+                        else:
+                            waf_paas_map[domain] = waf_paas_disable_script
+
+                    waf_over_enable_script = pre_str + '##'+ sys_name + '##' + device_name + '##' + '0' + '##' + 'slb real enable "' + nsae_waf_vs_mem + '"'+ '\n'
+                    over_enable_key = domain + '_' + waf_over_enable_script
+                    if over_enable_key not in scripts_over_map.keys():
+                        scripts_over_map[over_enable_key] = ''
+                        if domain in waf_over_map.keys():
+                            waf_over_map[domain] = waf_over_map[domain] + waf_over_enable_script
+                        else:
+                            waf_over_map[domain] = waf_over_enable_script
+
+                    waf_over_disable_script = pre_str + '##' + sys_name + '##' + device_name + '##' + '1' + '##' + 'slb real disable "' + nsae_web_vs_mem + '"' + '\n'
+                    over_disable_key = domain + '_' + waf_over_disable_script
+                    if over_disable_key not in scripts_over_map.keys():
+                        scripts_over_map[over_disable_key] = ''
+                        if domain in waf_over_map.keys():
+                            waf_over_map[domain] = waf_over_map[domain] + waf_over_disable_script
+                        else:
+                            waf_over_map[domain] = waf_over_disable_script
 
                     ssl_host_info = nsae_vs_sslhost_map[nsae_vs]
                     ssl_update_script = pre_str + '##'+ sys_name + '##' + ssl_host_info + '\n'
@@ -267,18 +304,43 @@ def get_waf_pass_list():
             web_vs_snat_pool_name_pattern = re.compile("##vs_snat_pool_name#([\s\S]*?)##", re.MULTILINE)
             web_vs_snat_pool_name = ''.join(web_vs_snat_pool_name_pattern.findall(web_vs_info))
 
-            waf_paas_script =  pre_str + '##'+sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual ' + ssl_vs_name + 'persist repalce { ' + web_vs_persist_name + '}' + ' profile repalce { ' + web_vs_profile_name + ' }' + 'pool ' + web_vs_pool_name + 'snatpool ' + web_vs_snat_pool_name + ',' + 'tmsh to device' + '\n'
-            if domain in waf_paas_map.keys():
-                waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_script
-            else:
-                waf_paas_map[domain] = waf_paas_script
+            waf_paas_script =  pre_str + '##'+sys_name + '##' + new_device_name + '##' + '0' + '##' + 'tmsh modify ltm virtual ' + ssl_vs_name  + ' profiles replace-all-with { ' + web_vs_profile_name + ' } ' + 'persist replace-all-with { ' + web_vs_persist_name + ' }' + ' pool ' + web_vs_pool_name + ' source-port change snatpool ' + web_vs_snat_pool_name + '\n'
+            if web_vs_persist_name == 'none':
+                waf_paas_script = pre_str + '##' + sys_name + '##' + new_device_name + '##' + '0' + '##' + 'tmsh modify ltm virtual ' + ssl_vs_name + ' profiles replace-all-with { ' + web_vs_profile_name + ' } ' + 'persist none' + ' pool ' + web_vs_pool_name + ' source-port change snatpool ' + web_vs_snat_pool_name + '\n'
+            waf_paas_key = domain + '_' + waf_paas_script
+            if waf_paas_key not in scripts_paas_map.keys():
+                scripts_paas_map[waf_paas_key] = ''
+                if domain in waf_paas_map.keys():
+                    waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_script
+                else:
+                    waf_paas_map[domain] = waf_paas_script
 
-            waf_over_script =  pre_str + '##'+ sys_name + '##' + new_device_name + '##' + 'tmsh modif ltm vitual '+ ssl_vs_name + 'persist repalce { ' +ssl_vs_persist_name+ '}' + ' profile repalce { ' +ssl_vs_profile_name+ ' }'+'pool '+ssl_vs_pool_name+ 'snatpool ' + ssl_vs_snat_pool_name + ',' + 'tmsh to device' + '\n'
-            if domain in waf_over_map.keys():
-                waf_over_map[domain] = waf_over_map[domain] + waf_over_script
-            else:
-                waf_over_map[domain] = waf_over_script
+            waf_paas_syn_script = pre_str + '##' + new_sys_name + '##' + new_device_name + '##' + '1' + '##' + 'tmsh run cm config-sync to-group Device-Group' + '\n'
+            waf_paas_syn_key = domain + '_' + waf_paas_syn_script
+            if waf_paas_syn_key not in scripts_paas_map.keys():
+                scripts_paas_map[waf_paas_syn_key] = ''
+                if domain in waf_paas_map.keys():
+                    waf_paas_map[domain] = waf_paas_map[domain] + waf_paas_syn_script
+                else:
+                    waf_paas_map[domain] = waf_paas_syn_script
 
+            waf_over_script =  pre_str + '##' + sys_name + '##' + new_device_name + '##' + '0' + '##' + 'tmsh modify ltm virtual ' + ssl_vs_name  + ' profiles replace-all-with { ' + ssl_vs_profile_name + ' } ' + 'persist none' + ' pool ' + ssl_vs_pool_name + ' snat none source-port preserve' + '\n'
+            waf_over_key = domain + '_' + waf_over_script
+            if waf_over_key not in scripts_over_map.keys():
+                scripts_over_map[waf_over_key] = ''
+                if domain in waf_over_map.keys():
+                    waf_over_map[domain] = waf_over_map[domain] + waf_over_script
+                else:
+                    waf_over_map[domain] = waf_over_script
+
+            waf_over_syn_script = pre_str + '##' + new_sys_name + '##' + new_device_name + '##' + '1' + '##' + 'tmsh run cm config-sync to-group Device-Group' + '\n'
+            waf_over_syn_key = domain + '_' + waf_over_syn_script
+            if waf_over_syn_key not in scripts_over_map.keys():
+                scripts_over_map[waf_over_syn_key] = ''
+                if domain in waf_over_map.keys():
+                    waf_over_map[domain] = waf_over_map[domain] + waf_over_syn_script
+                else:
+                    waf_over_map[domain] = waf_over_syn_script
 def get_ltm_base_config(filepath,type,version,device_name):
 
     ltm_config_open = open(filepath, encoding='utf-8' ,errors='ignore')
@@ -295,7 +357,7 @@ def get_ltm_base_config(filepath,type,version,device_name):
     syslog = ''
     snatpool = ''
 
-    if type == 'ltm':
+    if type == 'ltm' or type == 'gtm':
         if version == 'v11' :
             ltm_v12_route = ltm_v12_route_pattern.findall(ltm_config_open_str)
             for item in ltm_v12_route:
@@ -360,27 +422,32 @@ def get_ltm_base_config(filepath,type,version,device_name):
 
 
         ltm_http_acl = ltm_http_acl_pattern.findall(ltm_config_open_str)
-        https_acls = ltm_http_acl[0].strip().replace(' ','\n')
+        if len(ltm_http_acl) > 0:
+            https_acls = ltm_http_acl[0].strip().replace(' ','\n')
 
         ltm_ssh_acl = ltm_ssh_acl_pattern.findall(ltm_config_open_str)
-        ssh_acls = ltm_ssh_acl[0].strip().replace(' ','\n')
+        if len(ltm_ssh_acl) > 0:
+            ssh_acls = ltm_ssh_acl[0].strip().replace(' ','\n')
 
         acls = 'https_acl:\n' + https_acls + '\nssh_acl:\n' + ssh_acls
 
         ltm_ntp = ltm_ntp_pattern.findall(ltm_config_open_str)
-        ntp = ltm_ntp[0].strip().replace(' ','\n')
+        if len(ltm_ntp) > 0:
+            ntp = ltm_ntp[0].strip().replace(' ','\n')
 
         ltm_snmp = ltm_snmp_pattern.findall(ltm_config_open_str)
-        snmp = ltm_snmp[0].strip().replace(' ','\n')
+        if len(ltm_snmp) > 0:
+            snmp = ltm_snmp[0].strip().replace(' ','\n')
 
         ltm_syslog = ltm_syslog_pattern.findall(ltm_config_open_str)
-        syslogs = ltm_syslog[0].strip().split(';')
-        syslog = '\n'.join(syslogs)
+        if len(ltm_syslog) > 0:
+            syslogs = ltm_syslog[0].strip().split(';')
+            syslog = '\n'.join(syslogs)
 
         ltm_snatpools = ltm_snatpool_pattern.findall(ltm_config_open_str)
         for item in ltm_snatpools:
             snatpool_name = item[0].strip()
-            snat_address = item[1].strip()
+            snat_address = item[1]
             snatpool = snatpool + snatpool_name + ':\n' + snat_address + '\n'
 
     elif type == 'nsae':
@@ -428,6 +495,9 @@ def get_ltm_base_config(filepath,type,version,device_name):
         for item in nsae_syslog:
             syslog = syslog + item.strip() + '\n'
 
+        nsae_snatpool = nsae_snatpool_pattern.findall(ltm_config_open_str)
+        for item in nsae_snatpool:
+            snatpool =  snatpool + item[0] + ': ' + item[1] + '-' + item[2]  + '\n'
 
     elif type == 'citrix':
         citrix_ip = citrix_ip_pattern.findall(ltm_config_open_str)
@@ -449,6 +519,36 @@ def get_ltm_base_config(filepath,type,version,device_name):
             acl_allow_src = item[0].strip()
             acl_allow_dest = item[1].strip()
             acls = acls + 'src: ' + acl_allow_src + ' dest: ' + acl_allow_dest + '\n'
+
+        citrix_snmp = citrix_snmp_pattern.findall(ltm_config_open_str)
+        for item in citrix_snmp:
+            snmp = snmp + item.strip() + '\n'
+
+        citrix_syslog = citrix_syslog_pattern.findall(ltm_config_open_str)
+        for item in citrix_syslog:
+            syslog = syslog + item.strip() + '\n'
+
+        citrix_ipset_map = {}
+        citrix_ipset = citrix_ipset_pattern.findall(ltm_config_open_str)
+        for item in citrix_ipset:
+            ipset_name = item[0].strip()
+            ipset_ip = item[1].strip()
+            if ipset_name in citrix_ipset_map.keys():
+                old_ip =  citrix_ipset_map[ipset_name]
+                citrix_ipset_map[ipset_name] = old_ip + ipset_ip + '\n'
+            else:
+                citrix_ipset_map[ipset_name] = ipset_ip  + '\n'
+
+        citrix_snatpool = citrix_snatpool_pattern.findall(ltm_config_open_str)
+        for item in citrix_snatpool:
+            snatpool_name = item[0].strip()
+            ipset_name = item[1].strip()
+            ipsetstrs = ipset_name.split(' ')
+            if len(ipsetstrs) > 0:
+                ipset_name = ipsetstrs[0].strip()
+            ips = citrix_ipset_map[ipset_name]
+            if ipset_name in citrix_ipset_map.keys():
+                snatpool = snatpool + snatpool_name + ":\n" + ips
 
     ltm_base_config = ['']*8
     ltm_base_config[0] = device_name
@@ -813,7 +913,7 @@ def get_nsae_ssl_config(file_path,type,version,device_name):
         nsae_slb_real_map[nsae_slb_real_name] = "##ipport#" + nsae_slb_real_ip + ':' + nsae_slb_real_port + '##limit#' + nsae_slb_real_limit + "##check#" + nsae_slb_real_check + '##'
         if not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}:[\s\S]*?$", real_ip_port_str):
             real_ip_port_str = re.sub(':0{1,}', ':', real_ip_port_str.lower())
-        nsae_real_map[real_ip_port_str] = nsae_slb_real_name
+        nsae_real_map[device_name + '_' + real_ip_port_str] = nsae_slb_real_name
 
     nsae_slb_real_disable_map = {}
     nsae_slb_real_disable_list = nsae_slb_real_disable_pattern.findall(ssl_config_open_str)
@@ -1141,19 +1241,17 @@ def main():
     ccvmb_waf_pass_writer = pd.ExcelWriter(config_path_os + '变更_手机旁路waf_'+now_time+'.xlsx')
 
     for domain in waf_paas_map.keys():
-        list = waf_paas_map[domain].strip("\n").split("\n")
-        list.sort()
+        newlist = waf_paas_map[domain].strip("\n").split("\n")
+        newlist.sort()
         scripts_list = []
         system_str = ''
-        for item in list:
+        for item in newlist:
             scripts = item.split("##")
             system_str = scripts[1]
             device_name = scripts[2]
-            script_strs = scripts[3].split(",")
-            script1 = [device_name,script_strs[0]]
+            script_strs = scripts[4]
+            script1 = [device_name,script_strs]
             scripts_list.append(script1)
-            script2 = [device_name, script_strs[1]]
-            scripts_list.append(script2)
 
         if '网站' in system_str:
             ccvcc_waf_pass_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
@@ -1181,19 +1279,17 @@ def main():
     ccvmb_waf_over_writer = pd.ExcelWriter(config_path_os + '回退_手机旁路waf_' + now_time + '.xlsx')
 
     for domain in waf_over_map.keys():
-        list = waf_over_map[domain].strip("\n").split("\n")
-        list.sort()
+        newlist = waf_over_map[domain].strip("\n").split("\n")
+        newlist.sort()
         scripts_list = []
         system_str = ''
-        for item in list:
+        for item in newlist:
             scripts = item.split("##")
             system_str = scripts[1]
             device_name = scripts[2]
-            script_strs = scripts[3].split(",")
-            script1 = [device_name, script_strs[0]]
+            script_strs = scripts[4]
+            script1 = [device_name,script_strs]
             scripts_list.append(script1)
-            script2 = [device_name, script_strs[1]]
-            scripts_list.append(script2)
 
         if '网站' in system_str:
             ccvcc_waf_over_df = pd.DataFrame(scripts_list, columns=['device_name', 'commad'])
@@ -1218,24 +1314,26 @@ def main():
     ccvep_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_对私_' + now_time + '.xlsx')
     ccvmb_sslupdate_writer = pd.ExcelWriter(config_path_os + 'sslupdate_手机_' + now_time + '.xlsx')
 
+    bak_time = datetime.datetime.now().strftime('%Y%m%d')
+
     for domain in ssl_update_map.keys():
-        list = ssl_update_map[domain].strip("\n").split("\n")
-        list.sort()
+        newlist = ssl_update_map[domain].strip("\n").split("\n")
+        newlist.sort()
         scripts_list = []
         bak_scripts_list = []
         restore_scripts_list = []
         system_str = ''
-        for item in list:
+        for item in newlist:
             scripts = item.split("##")
             system_str = scripts[1]
             script_strs = scripts[2].split(",")
             script1 = [domain, script_strs[0], script_strs[1], script_strs[2]]
             scripts_list.append(script1)
-            bak_script = 'ssl bak ' + script_strs[1] + ' "aaa" ' + '"bbb" '
+            bak_script = 'ssl backup certificate "' + script_strs[1] + '" "bak'+ bak_time + '" ' + '"123123" '
             bak_scripts = [script_strs[0], bak_script]
             bak_scripts_list.append(bak_scripts)
 
-            restore_script = 'ssl restore ' + script_strs[1] + ' "aaa" ' + '"bbb" '
+            restore_script = 'ssl restore certificate "' + script_strs[1] + '" "bak'+ bak_time + '" ' + '"123123" '
             restore_scripts = [script_strs[0], restore_script]
             restore_scripts_list.append(restore_scripts)
 
